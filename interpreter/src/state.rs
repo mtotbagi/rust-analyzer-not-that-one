@@ -20,10 +20,10 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(program_counter: ProgramCounter) -> Self {
+    pub fn new(program_counter: ProgramCounter, input: Vec<StackValue>) -> Self {
         Self {
             heap: Heap { heap: vec![] },
-            frames: vec![Frame::new(program_counter)],
+            frames: vec![Frame::new(program_counter, input)],
         }
     }
 }
@@ -39,10 +39,10 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn new(program_counter: ProgramCounter) -> Self {
+    pub fn new(program_counter: ProgramCounter, input: Vec<StackValue>) -> Self {
         Self {
             stack: vec![],
-            locals: vec![],
+            locals: input.into_iter().map(|v| Some(v)).collect(),
             program_counter,
         }
     }
@@ -69,18 +69,18 @@ impl Frame {
             panic!()
         }
     }
-    
+
     pub(crate) fn push(&mut self, value: StackValue) {
         self.stack.push(value);
     }
-    
+
     pub(crate) fn load(&mut self, ty: StackType, index: u32) {
         let local = self.locals[index as usize].unwrap();
         assert!(local.get_type() == ty);
 
         self.stack.push(local);
     }
-    
+
     pub(crate) fn store(&mut self, ty: StackType, index: u32) {
         let value = self.stack.pop().unwrap();
         assert!(value.get_type() == ty);

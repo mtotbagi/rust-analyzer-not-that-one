@@ -1,6 +1,9 @@
 use serde_json::Value;
 
-use crate::{Access, Cond, Instruction, Op, SimpleRef, StackType, StackValue};
+use crate::{
+    Access, Cond, Instruction, Op, SimpleRef, StackType, StackValue,
+    java_class::{Class, Method},
+};
 
 pub trait FromJson {
     fn from_json(json: &Value) -> Self;
@@ -171,8 +174,8 @@ impl FromJson for SimpleRef {
     }
 }
 
-impl Cond {
-    pub fn from_json(json: &Value) -> Self {
+impl FromJson for Cond {
+    fn from_json(json: &Value) -> Self {
         let Value::String(s) = &json else {
             panic!("Invalid json")
         };
@@ -187,5 +190,41 @@ impl Cond {
             "isnot" => Self::IsNot,
             _ => panic!("Invalid json: {}", json),
         }
+    }
+}
+
+impl FromJson for Method {
+    fn from_json(json: &Value) -> Self {
+        let name = json["name"].as_str().unwrap().to_string();
+        let instructions: Box<_> = json["code"]["bytecode"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(Instruction::from_json)
+            .collect();
+        let params: Box<_> = json["params"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|json| StackType::from_json(&json["type"]["base"]))
+            .collect();
+        Method {
+            name,
+            params,
+            instructions,
+        }
+    }
+}
+
+impl FromJson for Class {
+    fn from_json(json: &Value) -> Self {
+        let name = json["name"].as_str().unwrap().to_string();
+        let methods: Box<_> = json["methods"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(Method::from_json)
+            .collect();
+        Class { name, methods }
     }
 }

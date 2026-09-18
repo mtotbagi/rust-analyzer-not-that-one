@@ -14,6 +14,8 @@ mod instruction;
 use instruction::*;
 mod state;
 use state::*;
+mod java_class;
+use java_class::*;
 
 use crate::ExeResult::{AssertErr, Div0, Ok};
 
@@ -44,35 +46,26 @@ fn main() {
     let input = &args[2];
     let iter: u32 = args[3].parse().unwrap();
     let json: Value = read_json(&classname);
-    let methods = &json["methods"];
-    let method = if let Array(v) = methods {
-        v.iter()
-            .find(|method| method["name"] == methodname)
-            .expect(&format!(
-                "Method {} should be implemented for {}",
-                methodname, classname
-            ))
-    } else {
-        panic!("Invalid json");
-    };
-
+    let class = Class::from_json(&json);
+    let method = class
+        .methods
+        .iter()
+        .find(|m| m.name == methodname)
+        .expect(&format!(
+            "Method {} should be implemented on {}",
+            methodname, classname
+        ));
+    let input = create_input(method, input);
     interpret(&args[1], method, input, iter);
 }
 
-fn create_input(frame: &mut Frame, method: &Value, input: &str) {
-    let params = method["params"].as_array().unwrap();
-    let types = params
-        .iter()
-        .map(|json| match json["type"]["base"].as_str().unwrap() {
-            "boolean" => SimpleType::Boolean,
-            "int" => SimpleType::Int,
-            _ => todo!(),
-        });
+fn create_input(method: &Method, input: &str) -> Vec<StackValue> {
+    let types = &method.params;
 
     let splitted_input = input[1..input.len() - 1].split(",").map(|s| s.trim());
-    for (t, input) in types.zip(splitted_input) {
+    types.iter().zip(splitted_input).map(|(t, input)|  {
         dbg!(input);
-        let stack_val: StackValue = match t {
+        match t {
             SimpleType::Int => StackValue::Int(input.parse().unwrap()),
             SimpleType::Float => todo!(),
             SimpleType::Byte => todo!(),
@@ -83,24 +76,17 @@ fn create_input(frame: &mut Frame, method: &Value, input: &str) {
                 StackValue::Int(b as i32)
             }
             SimpleType::SimpleRef(simple_ref) => todo!(),
-        };
-        frame.locals.push(Some(stack_val));
-    }
+        }
+    }).collect()
 }
 
-fn interpret(abs_method_name: &str, method: &Value, input: &str, iter: u32) {
-    let instructions: Vec<_> = if let Array(instructions) = &method["code"]["bytecode"] {
-        instructions.iter().map(Instruction::from_json).collect()
-    } else {
-        panic!("Invalid json")
-    };
+fn interpret(abs_method_name: &str, method: &Method, input: Vec<StackValue>, iter: u32) {
     let pc = ProgramCounter(abs_method_name.to_string(), 0);
-    let mut state = State::new(pc);
-    create_input(&mut state.frames[0], method, input);
+    let mut state = State::new(pc, input);
     println!("(init {} )", state.to_sexp());
     for _ in 0..iter {
         println!("(step\n:before {}", state.to_sexp());
-        let (pc, res) = step(&instructions, state);
+        let (pc, res) = step(&method.instructions, state);
         println!("{}", pc.to_sexp());
         println!(":after {}", res.to_sexp());
         println!(")");
