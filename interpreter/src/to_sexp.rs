@@ -9,15 +9,15 @@ impl ToSexp for StackValue {
         let mut res = "(".to_string();
         match self {
             StackValue::Int(i) => {
-                res += "int";
+                res += "int ";
                 res += &i.to_string();
             }
             StackValue::Float(f) => {
-                res += "float";
+                res += "float ";
                 res += &f.to_string();
             }
             StackValue::Ref(r) => {
-                res += "ref";
+                res += "ref ";
                 res += &r.to_string();
             }
         }
@@ -95,11 +95,11 @@ impl ToSexp for Either {
             Either::State(state) => state.to_sexp(),
             Either::Result(exe_result) => match exe_result {
                 ExeResult::Ok => "ok".to_string(),
-                ExeResult::AssertErr => "assertion error".to_string(),
-                ExeResult::OutOfBounds => "out of bounds".to_string(),
-                ExeResult::NullPointer => "null pointer".to_string(),
-                ExeResult::Div0 => "divide by zero".to_string(),
-                ExeResult::NoHalt => "*".to_string(),
+                ExeResult::AssertErr => "\"assertion error\"".to_string(),
+                ExeResult::OutOfBounds => "\"out of bounds\"".to_string(),
+                ExeResult::NullPointer => "\"null pointer\"".to_string(),
+                ExeResult::Div0 => "\"divide by zero\"".to_string(),
+                ExeResult::NoHalt => "\"*\"".to_string(),
             },
         }
     }

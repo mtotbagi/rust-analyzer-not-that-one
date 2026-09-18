@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::{Cond, Instruction, StackType, StackValue};
+use crate::{Access, Cond, Instruction, Op, SimpleRef, StackType, StackValue};
 
 pub trait FromJson {
     fn from_json(json: &Value) -> Self;
@@ -30,6 +30,7 @@ impl FromJson for StackValue {
             panic!("Invalid json")
         };
         match s.as_str() {
+            "int" => Self::Int(i32::from_json(&json["value"])),
             "integer" => Self::Int(i32::from_json(&json["value"])),
             "float" => todo!(),
             "ref" => todo!(),
@@ -82,6 +83,10 @@ impl FromJson for Instruction {
                 cond: Cond::from_json(&json["condition"]),
                 target: u32::from_json(&json["target"]),
             },
+            "if" => Self::If {
+                cond: Cond::from_json(&json["condition"]),
+                target: u32::from_json(&json["target"]),
+            },
             "load" => Self::Load {
                 ty: StackType::from_json(&json["type"]),
                 index: u32::from_json(&json["index"]),
@@ -96,16 +101,72 @@ impl FromJson for Instruction {
             "return" => Self::Return {
                 ty: Option::<StackType>::from_json(&json["type"]),
             },
-            "get" => Self::Get,
+            "get" => {
+                if json["field"]["name"] != "$assertionsDisabled" {
+                    todo!()
+                }
+                Self::Get
+            }
             "new" => Self::New {
                 class: json["class"].as_str().unwrap().to_string(),
             },
             "dup" => Self::Dup {
                 words: json["words"].as_u64().unwrap() as u32,
             },
-            "invoke" => Self::Invoke,
+            "invoke" => Self::Invoke {
+                access: Access::from_json(&json["access"]),
+                method_name: json["method"]["name"]
+                    .as_str()
+                    .expect("Invalid json")
+                    .to_string(),
+                simple_ref: SimpleRef::from_json(&json["method"]["ref"]),
+            },
             "throw" => Self::Throw,
+            "binary" => Self::Binary {
+                op: Op::from_json(&json["operant"]),
+                ty: StackType::from_json(&json["type"]),
+            },
             _ => unimplemented!("{}", json),
+        }
+    }
+}
+
+impl FromJson for Op {
+    fn from_json(json: &Value) -> Self {
+        match json.as_str().unwrap() {
+            "add" => Self::Add,
+            "sub" => Self::Sub,
+            "mul" => Self::Mul,
+            "div" => Self::Div,
+            "rem" => Self::Rem,
+            _ => panic!("Invalid json"),
+        }
+    }
+}
+
+impl FromJson for Access {
+    fn from_json(json: &Value) -> Self {
+        let access = json.as_str().expect("Invalid json");
+        match access {
+            "special" => Self::Special,
+            "static" => todo!(),
+            "dynamic" => todo!(),
+            "interface" => todo!(),
+            "virtual" => todo!(),
+            _ => panic!("Invalid json"),
+        }
+    }
+}
+
+impl FromJson for SimpleRef {
+    fn from_json(json: &Value) -> Self {
+        let kind = json["kind"].as_str().expect("Invalid json");
+        match kind {
+            "class" => Self::Class {
+                name: json["name"].as_str().expect("Invalid json").to_string(),
+            },
+            "array" => todo!(),
+            _ => panic!("Invalid json"),
         }
     }
 }

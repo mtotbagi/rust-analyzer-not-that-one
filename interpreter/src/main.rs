@@ -8,6 +8,14 @@ mod to_sexp;
 use to_sexp::ToSexp;
 mod from_json;
 use from_json::FromJson;
+mod java_types;
+use java_types::*;
+mod instruction;
+use instruction::*;
+mod state;
+use state::*;
+
+use crate::ExeResult::{AssertErr, Div0, Ok};
 
 fn get_class_and_method(arg: &str) -> (String, String) {
     let re = Regex::new(r"(.*)\.(.*):(.*)").unwrap();
@@ -51,34 +59,33 @@ fn main() {
     interpret(&args[1], method, input, iter);
 }
 
-enum Instruction {
-    Ifz { cond: Cond, target: u32 },
-    Load { ty: StackType, index: u32 },
-    Store { ty: StackType, index: u32 },
-    Push { value: StackValue },
-    Return { ty: Option<StackType> },
-    Get,
-    New { class: String },
-    Dup { words: u32 },
-    Invoke,
-    Throw,
-}
+fn create_input(frame: &mut Frame, method: &Value, input: &str) {
+    let params = method["params"].as_array().unwrap();
+    let types = params
+        .iter()
+        .map(|json| match json["type"]["base"].as_str().unwrap() {
+            "boolean" => SimpleType::Boolean,
+            "int" => SimpleType::Int,
+            _ => todo!(),
+        });
 
-enum StackType {
-    Int,
-    Float,
-    Ref,
-}
-
-enum Cond {
-    Ne,
-    Eq,
-    Lt,
-    Le,
-    Gt,
-    Ge,
-    Is,
-    IsNot,
+    let splitted_input = input[1..input.len() - 1].split(",").map(|s| s.trim());
+    for (t, input) in types.zip(splitted_input) {
+        dbg!(input);
+        let stack_val: StackValue = match t {
+            SimpleType::Int => StackValue::Int(input.parse().unwrap()),
+            SimpleType::Float => todo!(),
+            SimpleType::Byte => todo!(),
+            SimpleType::Char => todo!(),
+            SimpleType::Short => todo!(),
+            SimpleType::Boolean => {
+                let b: bool = input.parse().unwrap();
+                StackValue::Int(b as i32)
+            }
+            SimpleType::SimpleRef(simple_ref) => todo!(),
+        };
+        frame.locals.push(Some(stack_val));
+    }
 }
 
 fn interpret(abs_method_name: &str, method: &Value, input: &str, iter: u32) {
@@ -89,6 +96,7 @@ fn interpret(abs_method_name: &str, method: &Value, input: &str, iter: u32) {
     };
     let pc = ProgramCounter(abs_method_name.to_string(), 0);
     let mut state = State::new(pc);
+    create_input(&mut state.frames[0], method, input);
     println!("(init {} )", state.to_sexp());
     for _ in 0..iter {
         println!("(step\n:before {}", state.to_sexp());
@@ -104,64 +112,102 @@ fn interpret(abs_method_name: &str, method: &Value, input: &str, iter: u32) {
     }
 }
 
-fn step(bytecode: &[Instruction], state: State) -> (ProgramCounter, Either) {
-    assert!(!state.frames.is_empty());
-    (
-        state.frames[0].program_counter.clone(),
-        Either::State(state),
-    )
-}
+fn step(bytecode: &[Instruction], mut state: State) -> (ProgramCounter, Either) {
+    let Some(mut cur_frame) = state.frames.pop() else {
+        panic!("Empty state!")
+    };
+    dbg!(&bytecode[cur_frame.pc()]);
+    match &bytecode[cur_frame.pc()] {
+        Instruction::Load { ty, index } => cur_frame.load(*ty, *index),
+        Instruction::Push { value } => cur_frame.push(*value),
+        Instruction::Dup { words } => cur_frame.dup(*words),
+        Instruction::Throw => return (cur_frame.program_counter, Either::Result(AssertErr)),
+        Instruction::Ifz { cond, target } => {
+            let i = match cur_frame.stack.pop() {
+                Some(StackValue::Int(i)) => i as i64,
+                Some(StackValue::Ref(i)) => i as i64,
+                Some(_) => panic!(),
+                None => panic!(),
+            };
+            if cond.cmp_with(i, 0) {
+                cur_frame.set_pc(*target);
+                let pc = cur_frame.program_counter.clone();
+                state.frames.push(cur_frame);
+                return (pc, Either::State(state));
+            }
+        }
+        Instruction::Store { ty, index } => cur_frame.store(*ty, *index),
+        Instruction::Return { ty } => {
+            if state.frames.is_empty() {
+                return (cur_frame.program_counter, Either::Result(Ok));
+            }
+            todo!();
+        }
+        Instruction::Get => {
+            // TODO handle other cases than assertionsDisabled = false
+            cur_frame.stack.push(StackValue::Int(0));
+            dbg!(&cur_frame.stack);
+        }
+        Instruction::New { class } => {
+            cur_frame
+                .stack
+                .push(StackValue::Ref(state.heap.heap.len() as u32));
+            state
+                .heap
+                .heap
+                .push(SimpleType::SimpleRef(Box::new(SimpleRef::Class {
+                    name: class.clone(),
+                })));
+        }
+        Instruction::Invoke {
+            access,
+            method_name,
+            simple_ref,
+        } => {
+            // TODO actual stuff
+            cur_frame.stack.pop();
+        }
+        Instruction::Binary { op, ty } => match ty {
+            StackType::Int => {
+                let Some(StackValue::Int(rhs)) = cur_frame.stack.pop() else {
+                    panic!()
+                };
+                let Some(StackValue::Int(lhs)) = cur_frame.stack.pop() else {
+                    panic!()
+                };
+                dbg!(lhs, rhs);
+                match op.op_int(lhs, rhs) {
+                    Some(result) => cur_frame.stack.push(StackValue::Int(result)),
+                    None => return (cur_frame.program_counter, Either::Result(Div0)),
+                }
+            }
+            StackType::Float => todo!(),
+            StackType::Ref => panic!("Cannot use ref for arithmetic operations!"),
+        },
+        Instruction::If { cond, target } => {
+            let rhs = match cur_frame.stack.pop() {
+                Some(StackValue::Int(i)) => i as i64,
+                Some(StackValue::Ref(i)) => i as i64,
+                Some(_) => panic!(),
+                None => panic!(),
+            };
+            let lhs = match cur_frame.stack.pop() {
+                Some(StackValue::Int(i)) => i as i64,
+                Some(StackValue::Ref(i)) => i as i64,
+                Some(_) => panic!(),
+                None => panic!(),
+            };
 
-enum Either {
-    State(State),
-    Result(ExeResult),
-}
-
-enum ExeResult {
-    Ok,
-    AssertErr,
-    OutOfBounds,
-    NullPointer,
-    Div0,
-    NoHalt,
-}
-
-struct State {
-    heap: Heap,
-    frames: Vec<Frame>,
-}
-
-impl State {
-    fn new(program_counter: ProgramCounter) -> Self {
-        Self {
-            heap: Heap,
-            frames: vec![Frame::new(program_counter)],
+            if cond.cmp_with(lhs, rhs) {
+                cur_frame.set_pc(*target);
+                let pc = cur_frame.program_counter.clone();
+                state.frames.push(cur_frame);
+                return (pc, Either::State(state));
+            }
         }
     }
-}
-
-struct Heap;
-struct Frame {
-    stack: Vec<StackValue>,
-    locals: Vec<Option<StackValue>>,
-    program_counter: ProgramCounter,
-}
-
-impl Frame {
-    fn new(program_counter: ProgramCounter) -> Self {
-        Self {
-            stack: vec![],
-            locals: vec![],
-            program_counter,
-        }
-    }
-}
-
-#[derive(Clone)]
-struct ProgramCounter(String, u32);
-
-enum StackValue {
-    Int(i32),
-    Float(f32),
-    Ref(u32),
+    cur_frame.increment_pc();
+    let pc = cur_frame.program_counter.clone();
+    state.frames.push(cur_frame);
+    (pc, Either::State(state))
 }
