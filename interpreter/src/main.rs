@@ -2,7 +2,7 @@
 use std::{env, fs::File, io::BufReader};
 
 use regex::Regex;
-use serde_json::Value::{self, Array};
+use serde_json::Value;
 
 mod to_sexp;
 use to_sexp::ToSexp;
@@ -50,7 +50,7 @@ fn main() {
     let method = class
         .methods
         .iter()
-        .find(|m| m.name == methodname)
+        .find(|m| m.id.name == methodname)
         .expect(&format!(
             "Method {} should be implemented on {}",
             methodname, classname
@@ -60,24 +60,28 @@ fn main() {
 }
 
 fn create_input(method: &Method, input: &str) -> Vec<StackValue> {
-    let types = &method.params;
+    let types = &method.id.params;
 
     let splitted_input = input[1..input.len() - 1].split(",").map(|s| s.trim());
-    types.iter().zip(splitted_input).map(|(t, input)|  {
-        dbg!(input);
-        match t {
-            SimpleType::Int => StackValue::Int(input.parse().unwrap()),
-            SimpleType::Float => todo!(),
-            SimpleType::Byte => todo!(),
-            SimpleType::Char => todo!(),
-            SimpleType::Short => todo!(),
-            SimpleType::Boolean => {
-                let b: bool = input.parse().unwrap();
-                StackValue::Int(b as i32)
+    types
+        .iter()
+        .zip(splitted_input)
+        .map(|(t, input)| {
+            dbg!(input);
+            match t {
+                SimpleType::Int => StackValue::Int(input.parse().unwrap()),
+                SimpleType::Float => todo!(),
+                SimpleType::Byte => todo!(),
+                SimpleType::Char => todo!(),
+                SimpleType::Short => todo!(),
+                SimpleType::Boolean => {
+                    let b: bool = input.parse().unwrap();
+                    StackValue::Int(b as i32)
+                }
+                SimpleType::SimpleRef(simple_ref) => todo!(),
             }
-            SimpleType::SimpleRef(simple_ref) => todo!(),
-        }
-    }).collect()
+        })
+        .collect()
 }
 
 fn interpret(abs_method_name: &str, method: &Method, input: Vec<StackValue>, iter: u32) {
@@ -147,10 +151,11 @@ fn step(bytecode: &[Instruction], mut state: State) -> (ProgramCounter, Either) 
         }
         Instruction::Invoke {
             access,
-            method_name,
+            method_id,
             simple_ref,
         } => {
             // TODO actual stuff
+
             cur_frame.stack.pop();
         }
         Instruction::Binary { op, ty } => match ty {
@@ -191,6 +196,13 @@ fn step(bytecode: &[Instruction], mut state: State) -> (ProgramCounter, Either) 
                 return (pc, Either::State(state));
             }
         }
+        Instruction::Goto { target } => {
+            cur_frame.set_pc(*target);
+            let pc = cur_frame.program_counter.clone();
+            state.frames.push(cur_frame);
+            return (pc, Either::State(state));
+        }
+        Instruction::Placeholder => todo!(),
     }
     cur_frame.increment_pc();
     let pc = cur_frame.program_counter.clone();

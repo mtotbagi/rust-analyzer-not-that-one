@@ -1,4 +1,7 @@
-use crate::java_types::{SimpleRef, StackType, StackValue};
+use crate::{
+    java_class::MethodId,
+    java_types::{SimpleRef, StackType, StackValue},
+};
 
 #[derive(Clone, Debug)]
 pub enum Instruction {
@@ -29,7 +32,7 @@ pub enum Instruction {
     },
     Invoke {
         access: Access,
-        method_name: String,
+        method_id: MethodId,
         simple_ref: SimpleRef,
     },
     Throw,
@@ -41,6 +44,10 @@ pub enum Instruction {
         cond: Cond,
         target: u32,
     },
+    Goto {
+        target: u32,
+    },
+    Placeholder,
 }
 
 #[derive(Clone, Copy, Debug)]

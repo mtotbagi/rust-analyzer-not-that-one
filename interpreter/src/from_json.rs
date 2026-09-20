@@ -2,7 +2,8 @@ use serde_json::Value;
 
 use crate::{
     Access, Cond, Instruction, Op, SimpleRef, StackType, StackValue,
-    java_class::{Class, Method},
+    java_class::{Class, Method, MethodId},
+    java_types::SimpleType,
 };
 
 pub trait FromJson {
@@ -37,7 +38,7 @@ impl FromJson for StackValue {
             "integer" => Self::Int(i32::from_json(&json["value"])),
             "float" => todo!(),
             "ref" => todo!(),
-            _ => panic!("Invalid json"),
+            _ => panic!("Invalid json {}", json),
         }
     }
 }
@@ -51,7 +52,37 @@ impl FromJson for StackType {
             "int" => Self::Int,
             "float" => Self::Float,
             "ref" => Self::Ref,
+            "class" => Self::Ref,
             _ => panic!("Invalid json"),
+        }
+    }
+}
+
+impl FromJson for SimpleType {
+    fn from_json(json: &Value) -> Self {
+        if let Value::String(kind) = &json["kind"] {
+            match kind.as_str() {
+                "array" => {
+                    return SimpleType::SimpleRef(Box::new(SimpleRef::Array {
+                        ty: SimpleType::from_json(&json["type"]),
+                    }));
+                }
+                _ => todo!(),
+            }
+        }
+        let s = if json.is_string() {
+            json.as_str().unwrap()
+        } else {
+            json["base"].as_str().unwrap()
+        };
+        match s {
+            "int" => Self::Int,
+            "float" => Self::Float,
+            "bool" | "boolean" => Self::Boolean,
+            "byte" => Self::Byte,
+            "char" => Self::Char,
+            "short" => Self::Short,
+            _ => panic!("Invalid json {}", json),
         }
     }
 }
@@ -70,6 +101,7 @@ impl FromJson for Option<StackType> {
             "int" => Some(StackType::Int),
             "float" => Some(StackType::Float),
             "ref" => Some(StackType::Ref),
+            "class" => Some(StackType::Ref),
             _ => panic!("Invalid json"),
         }
     }
@@ -118,10 +150,7 @@ impl FromJson for Instruction {
             },
             "invoke" => Self::Invoke {
                 access: Access::from_json(&json["access"]),
-                method_name: json["method"]["name"]
-                    .as_str()
-                    .expect("Invalid json")
-                    .to_string(),
+                method_id: MethodId::from_json(&json["method"]),
                 simple_ref: SimpleRef::from_json(&json["method"]["ref"]),
             },
             "throw" => Self::Throw,
@@ -129,6 +158,14 @@ impl FromJson for Instruction {
                 op: Op::from_json(&json["operant"]),
                 ty: StackType::from_json(&json["type"]),
             },
+            "goto" => Self::Goto {
+                target: u32::from_json(&json["target"]),
+            },
+            "newarray" => Self::Placeholder,
+            "array_store" => Self::Placeholder,
+            "array_load" => Self::Placeholder,
+            "arraylength" => Self::Placeholder,
+            "incr" => Self::Placeholder,
             _ => unimplemented!("{}", json),
         }
     }
@@ -152,7 +189,7 @@ impl FromJson for Access {
         let access = json.as_str().expect("Invalid json");
         match access {
             "special" => Self::Special,
-            "static" => todo!(),
+            "static" => Self::Static,
             "dynamic" => todo!(),
             "interface" => todo!(),
             "virtual" => todo!(),
@@ -193,24 +230,40 @@ impl FromJson for Cond {
     }
 }
 
-impl FromJson for Method {
+impl FromJson for MethodId {
     fn from_json(json: &Value) -> Self {
         let name = json["name"].as_str().unwrap().to_string();
+
+        let params: Box<_> = if json["params"].is_null() {
+            json["args"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|json| SimpleType::from_json(&json))
+                .collect()
+        } else {
+            json["params"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|json| SimpleType::from_json(&json["type"]))
+                .collect()
+        };
+        MethodId { name, params }
+    }
+}
+
+impl FromJson for Method {
+    fn from_json(json: &Value) -> Self {
         let instructions: Box<_> = json["code"]["bytecode"]
             .as_array()
             .unwrap()
             .iter()
             .map(Instruction::from_json)
             .collect();
-        let params: Box<_> = json["params"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|json| StackType::from_json(&json["type"]["base"]))
-            .collect();
+
         Method {
-            name,
-            params,
+            id: MethodId::from_json(json),
             instructions,
         }
     }
@@ -223,6 +276,8 @@ impl FromJson for Class {
             .as_array()
             .unwrap()
             .iter()
+            // Skip the <clinit> method as I have no idea how push would work with a class
+            .filter(|m| m["name"] != "<clinit>")
             .map(Method::from_json)
             .collect();
         Class { name, methods }
