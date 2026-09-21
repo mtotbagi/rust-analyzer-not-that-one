@@ -74,6 +74,7 @@ impl FromJson for SimpleType {
                 _ => todo!(),
             }
         }
+        dbg!(json);
         let s = if json.is_string() {
             json.as_str().unwrap()
         } else {
@@ -86,6 +87,42 @@ impl FromJson for SimpleType {
             "byte" => Self::Byte,
             "char" => Self::Char,
             "short" => Self::Short,
+            _ => panic!("Invalid json {}", json),
+        }
+    }
+}
+
+impl FromJson for Option<SimpleType> {
+    fn from_json(json: &Value) -> Self {
+        if json.is_null() {
+            return None;
+        }
+        if let Value::String(kind) = &json["kind"] {
+            match kind.as_str() {
+                "array" => {
+                    return Some(SimpleType::SimpleRef(Box::new(SimpleRef::Array {
+                        ty: SimpleType::from_json(&json["type"]),
+                    })));
+                }
+                _ => todo!(),
+            }
+        }
+        let s = if json.is_string() {
+            json.as_str().unwrap()
+        } else if json["base"].is_string() {
+            json["base"].as_str().unwrap()
+        } else if json["type"].is_string() {
+            json["type"].as_str().unwrap()
+        } else {
+            return None;
+        };
+        match s {
+            "int" => Some(SimpleType::Int),
+            "float" => Some(SimpleType::Float),
+            "bool" | "boolean" => Some(SimpleType::Boolean),
+            "byte" => Some(SimpleType::Byte),
+            "char" => Some(SimpleType::Char),
+            "short" => Some(SimpleType::Short),
             _ => panic!("Invalid json {}", json),
         }
     }
@@ -263,7 +300,13 @@ impl FromJson for MethodId {
                 .map(|json| SimpleType::from_json(&json["type"]))
                 .collect()
         };
-        MethodId { name, params }
+
+        let ret_ty = Option::<SimpleType>::from_json(&json["returns"]);
+        MethodId {
+            name,
+            params,
+            ret_ty,
+        }
     }
 }
 

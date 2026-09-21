@@ -1,4 +1,7 @@
-use crate::java_types::{HeapValue, SimpleType, StackType, StackValue};
+use crate::{
+    java_class::MethodId,
+    java_types::{HeapValue, SimpleType, StackType, StackValue},
+};
 
 pub enum Either {
     State(State),
@@ -26,6 +29,13 @@ impl State {
             frames: vec![Frame::new(program_counter, input)],
         }
     }
+
+    pub fn program_counter(&self) -> ProgramCounter {
+        let Some(frame) = self.frames.last() else {
+            panic!()
+        };
+        frame.program_counter.clone()
+    }
 }
 
 pub struct Heap {
@@ -48,15 +58,15 @@ impl Frame {
     }
 
     pub fn pc(&self) -> usize {
-        self.program_counter.1 as usize
+        self.program_counter.idx
     }
 
     pub fn set_pc(&mut self, target: u32) {
-        self.program_counter.1 = target;
+        self.program_counter.idx = target as usize;
     }
 
     pub fn increment_pc(&mut self) {
-        self.program_counter.1 += 1;
+        self.program_counter.idx += 1;
     }
 
     pub fn dup(&mut self, words: u32) {
@@ -85,10 +95,15 @@ impl Frame {
         let value = self.stack.pop().unwrap();
         assert!(value.get_type() == ty);
 
-        self.locals.resize((index as usize + 1).max(self.locals.len()), None);
+        self.locals
+            .resize((index as usize + 1).max(self.locals.len()), None);
         self.locals[index as usize] = Some(value);
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct ProgramCounter(pub String, pub u32);
+pub struct ProgramCounter {
+    pub class: String,
+    pub method: MethodId,
+    pub idx: usize,
+}

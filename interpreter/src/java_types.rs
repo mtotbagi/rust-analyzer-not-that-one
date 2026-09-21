@@ -50,7 +50,7 @@ impl HeapValue {
             HeapValue::Byte(b) => StackValue::Int(*b as i32),
             HeapValue::Short(s) => StackValue::Int(*s as i32),
             HeapValue::Char(c) => StackValue::Int(*c as i32),
-            _ => panic!("Can't convert to StackValue")
+            _ => panic!("Can't convert to StackValue"),
         }
     }
 }

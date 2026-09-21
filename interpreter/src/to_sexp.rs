@@ -42,7 +42,14 @@ impl ToSexp for Option<StackValue> {
 
 impl ToSexp for ProgramCounter {
     fn to_sexp(&self) -> String {
-        ":pc \"".to_string() + &self.0 + ":" + &self.1.to_string() + "\"\n"
+        let classname = self.class.replace("/", ".");
+        ":pc \"".to_string()
+            + &classname
+            + "."
+            + &self.method.to_string()
+            + ":"
+            + &self.idx.to_string()
+            + "\"\n"
     }
 }
 

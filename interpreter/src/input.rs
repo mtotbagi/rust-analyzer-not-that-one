@@ -1,5 +1,9 @@
+use crate::{
+    java_class::Method,
+    java_types::{HeapValue, SimpleRef, SimpleType, StackValue},
+    state::Heap,
+};
 use std::collections::HashMap;
-use crate::{java_class::Method, java_types::{HeapValue, SimpleRef, SimpleType, StackValue}, state::Heap};
 
 pub fn parse_input(method: &Method, input: &str) -> (Vec<StackValue>, Heap) {
     let types = &method.id.params;
@@ -71,16 +75,24 @@ fn parse_input_value(ty: &SimpleType, input: &str, heap: &mut Heap) -> StackValu
 fn parse_primitive_heap(ty: &SimpleType, input: &str) -> HeapValue {
     match ty {
         SimpleType::Int => HeapValue::Int(
-            input.parse().unwrap_or_else(|_| panic!("invalid int literal `{input}`")),
+            input
+                .parse()
+                .unwrap_or_else(|_| panic!("invalid int literal `{input}`")),
         ),
         SimpleType::Float => HeapValue::Float(
-            input.parse().unwrap_or_else(|_| panic!("invalid float literal `{input}`")),
+            input
+                .parse()
+                .unwrap_or_else(|_| panic!("invalid float literal `{input}`")),
         ),
         SimpleType::Byte => HeapValue::Byte(
-            input.parse().unwrap_or_else(|_| panic!("invalid byte literal `{input}`")),
+            input
+                .parse()
+                .unwrap_or_else(|_| panic!("invalid byte literal `{input}`")),
         ),
         SimpleType::Short => HeapValue::Short(
-            input.parse().unwrap_or_else(|_| panic!("invalid short literal `{input}`")),
+            input
+                .parse()
+                .unwrap_or_else(|_| panic!("invalid short literal `{input}`")),
         ),
         SimpleType::Char => HeapValue::Char(parse_char_literal(input)),
         SimpleType::Boolean => {
@@ -128,7 +140,10 @@ fn parse_array(ty: &SimpleType, input: &str, heap: &mut Heap) -> StackValue {
         .collect();
 
     let idx = heap.heap.len() as u32;
-    heap.heap.push(HeapValue::Array { ty: ty.clone(), values });
+    heap.heap.push(HeapValue::Array {
+        ty: ty.clone(),
+        values,
+    });
     StackValue::Ref(Some(idx))
 }
 
@@ -154,7 +169,10 @@ fn parse_string(input: &str, heap: &mut Heap) -> StackValue {
     let mut fields = HashMap::new();
     fields.insert(
         "value".to_string(),
-        HeapValue::Array { ty: SimpleType::Char, values: chars },
+        HeapValue::Array {
+            ty: SimpleType::Char,
+            values: chars,
+        },
     );
 
     let idx = heap.heap.len() as u32;
