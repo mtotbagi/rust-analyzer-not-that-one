@@ -20,9 +20,9 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(program_counter: ProgramCounter, input: Vec<StackValue>) -> Self {
+    pub fn new(program_counter: ProgramCounter, input: Vec<StackValue>, heap: Heap) -> Self {
         Self {
-            heap: Heap { heap: vec![] },
+            heap: heap,
             frames: vec![Frame::new(program_counter, input)],
         }
     }

@@ -17,7 +17,8 @@ mod state;
 use state::*;
 mod java_class;
 use java_class::*;
-
+mod input;
+use input::*;
 use crate::ExeResult::{AssertErr, Div0, Ok, OutOfBounds, NullPointer};
 
 fn get_class_and_method(arg: &str) -> (String, String) {
@@ -56,38 +57,13 @@ fn main() {
             "Method {} should be implemented on {}",
             methodname, classname
         ));
-    let input = create_input(method, input);
+    let input = parse_input(method, input);
     interpret(&args[1], method, input, iter);
 }
 
-fn create_input(method: &Method, input: &str) -> Vec<StackValue> {
-    let types = &method.id.params;
-
-    let splitted_input = input[1..input.len() - 1].split(",").map(|s| s.trim());
-    types
-        .iter()
-        .zip(splitted_input)
-        .map(|(t, input)| {
-            dbg!(input);
-            match t {
-                SimpleType::Int => StackValue::Int(input.parse().unwrap()),
-                SimpleType::Float => todo!(),
-                SimpleType::Byte => todo!(),
-                SimpleType::Char => todo!(),
-                SimpleType::Short => todo!(),
-                SimpleType::Boolean => {
-                    let b: bool = input.parse().unwrap();
-                    StackValue::Int(b as i32)
-                }
-                SimpleType::SimpleRef(simple_ref) => todo!(),
-            }
-        })
-        .collect()
-}
-
-fn interpret(abs_method_name: &str, method: &Method, input: Vec<StackValue>, iter: u32) {
+fn interpret(abs_method_name: &str, method: &Method, input: (Vec<StackValue>, Heap), iter: u32) {
     let pc = ProgramCounter(abs_method_name.to_string(), 0);
-    let mut state = State::new(pc, input);
+    let mut state = State::new(pc, input.0, input.1);
     println!("(init {} )", state.to_sexp());
     for _ in 0..iter {
         println!("(step\n:before {}", state.to_sexp());

@@ -47,7 +47,10 @@ impl HeapValue {
         match self {
             HeapValue::Int(i) => StackValue::Int(*i),
             HeapValue::Float(f) => StackValue::Float(*f),
-            _ => panic!("Can't convert to StackValue"),
+            HeapValue::Byte(b) => StackValue::Int(*b as i32),
+            HeapValue::Short(s) => StackValue::Int(*s as i32),
+            HeapValue::Char(c) => StackValue::Int(*c as i32),
+            _ => panic!("Can't convert to StackValue")
         }
     }
 }
