@@ -1,6 +1,6 @@
 use crate::{
     java_class::MethodId,
-    java_types::{SimpleRef, StackType, StackValue},
+    java_types::{SimpleRef, SimpleType, StackType, StackValue},
 };
 
 #[derive(Clone, Debug)]
@@ -48,6 +48,21 @@ pub enum Instruction {
         target: u32,
     },
     Placeholder,
+    NewArray {
+        dim: u32,
+        ty: SimpleType,
+    },
+    ArrayStore {
+        ty: SimpleType, // Technically JArrayType
+    },
+    ArrayLength,
+    ArrayLoad {
+        ty: SimpleType, // Technically JArrayType
+    },
+    Incr {
+        index: u32,
+        amount: i32,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]

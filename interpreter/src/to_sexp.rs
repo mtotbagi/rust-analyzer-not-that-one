@@ -16,9 +16,13 @@ impl ToSexp for StackValue {
                 res += "float ";
                 res += &f.to_string();
             }
-            StackValue::Ref(r) => {
+            StackValue::Ref(Some(r)) => {
                 res += "ref ";
                 res += &r.to_string();
+            }
+            StackValue::Ref(None) => {
+                res += "ref ";
+                res += "null";
             }
         }
         res += ")\n";

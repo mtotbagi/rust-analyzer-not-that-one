@@ -13,7 +13,7 @@ pub trait FromJson {
 impl FromJson for u32 {
     fn from_json(json: &Value) -> u32 {
         let Value::Number(n) = json else {
-            panic!("Invalid json")
+            panic!("Invalid json, {}", json)
         };
         n.as_u64().expect("Integer expected") as u32
     }
@@ -30,8 +30,12 @@ impl FromJson for i32 {
 
 impl FromJson for StackValue {
     fn from_json(json: &Value) -> Self {
+        if json.is_null() {
+            return Self::Ref(None);
+        }
+
         let Value::String(s) = &json["type"] else {
-            panic!("Invalid json")
+            panic!("Invalid json {}", json)
         };
         match s.as_str() {
             "int" => Self::Int(i32::from_json(&json["value"])),
@@ -161,11 +165,21 @@ impl FromJson for Instruction {
             "goto" => Self::Goto {
                 target: u32::from_json(&json["target"]),
             },
-            "newarray" => Self::Placeholder,
-            "array_store" => Self::Placeholder,
-            "array_load" => Self::Placeholder,
-            "arraylength" => Self::Placeholder,
-            "incr" => Self::Placeholder,
+            "newarray" => Self::NewArray {
+                dim: u32::from_json(&json["dim"]),
+                ty: SimpleType::from_json(&json["type"]),
+            },
+            "array_store" => Self::ArrayStore {
+                ty: SimpleType::from_json(&json["type"]),
+            },
+            "arraylength" => Self::ArrayLength,
+            "array_load" => Self::ArrayLoad {
+                ty: SimpleType::from_json(&json["type"]),
+            },
+            "incr" => Self::Incr {
+                index: u32::from_json(&json["index"]),
+                amount: i32::from_json(&json["amount"]),
+            },
             _ => unimplemented!("{}", json),
         }
     }

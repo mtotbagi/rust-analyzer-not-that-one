@@ -4,7 +4,7 @@ use std::collections::HashMap;
 pub enum StackValue {
     Int(i32),
     Float(f32),
-    Ref(u32),
+    Ref(Option<u32>),
 }
 
 impl StackValue {
@@ -15,12 +15,20 @@ impl StackValue {
             StackValue::Ref(_) => StackType::Ref,
         }
     }
+
+    pub fn to_heap_value(&self) -> HeapValue {
+        match self {
+            StackValue::Int(i) => HeapValue::Int(*i),
+            StackValue::Float(f) => HeapValue::Float(*f),
+            StackValue::Ref(_) => panic!("Ref can't be turned into a heap value"),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub enum HeapValue {
     Int(i32),
-    Float(i32),
+    Float(f32),
     Byte(u8),
     Char(u16),
     Short(i16),
@@ -32,6 +40,16 @@ pub enum HeapValue {
         name: String,
         fields: HashMap<String, HeapValue>,
     },
+}
+
+impl HeapValue {
+    pub fn to_stack_value(&self) -> StackValue {
+        match self {
+            HeapValue::Int(i) => StackValue::Int(*i),
+            HeapValue::Float(f) => StackValue::Float(*f),
+            _ => panic!("Can't convert to StackValue"),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

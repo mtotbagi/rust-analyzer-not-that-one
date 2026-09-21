@@ -1,4 +1,4 @@
-use crate::java_types::{SimpleType, StackType, StackValue};
+use crate::java_types::{HeapValue, SimpleType, StackType, StackValue};
 
 pub enum Either {
     State(State),
@@ -29,7 +29,7 @@ impl State {
 }
 
 pub struct Heap {
-    pub heap: Vec<SimpleType>,
+    pub heap: Vec<HeapValue>,
 }
 
 pub struct Frame {
@@ -85,7 +85,8 @@ impl Frame {
         let value = self.stack.pop().unwrap();
         assert!(value.get_type() == ty);
 
-        self.locals.push(Some(value));
+        self.locals.resize((index as usize + 1).max(self.locals.len()), None);
+        self.locals[index as usize] = Some(value);
     }
 }
 
