@@ -81,7 +81,7 @@ impl Interpreter {
         println!("(init {} )", state.to_sexp());
         for _ in 0..iter {
             println!("(step\n:before {}", state.to_sexp());
-            let res = self.step(&method.instructions, state);
+            let res = self.step(state);
             println!("{}", pc.to_sexp());
             println!(":after {}", res.to_sexp());
             println!(")");
@@ -94,10 +94,11 @@ impl Interpreter {
         }
     }
 
-    fn step(&self, bytecode: &[Instruction], mut state: State) -> Either {
+    fn step(&self, mut state: State) -> Either {
         let Some(mut cur_frame) = state.frames.pop() else {
             panic!("Empty state!")
         };
+        let bytecode = self.class.methods.iter().filter(|m| m.id.name == cur_frame.program_counter.method.name).map(|m| &m.instructions).next().unwrap();
         dbg!(&bytecode[cur_frame.pc()]);
         match &bytecode[cur_frame.pc()] {
             Instruction::Load { ty, index } => cur_frame.load(*ty, *index),
@@ -120,10 +121,18 @@ impl Interpreter {
             }
             Instruction::Store { ty, index } => cur_frame.store(*ty, *index),
             Instruction::Return { ty } => {
-                if state.frames.is_empty() {
+                if let Some(old_frame) = state.frames.last_mut() {
+                    if let Some(ty) = ty {
+                        let Some(value) = cur_frame.stack.pop() else {
+                            panic!("Invalid frame {}, stack shouldn't be empty!", cur_frame.to_sexp())
+                        };
+                        assert!(*ty == value.get_type());
+                        old_frame.push(value);
+                    }
+                    return Either::State(state);
+                } else {
                     return Either::Result(Ok);
                 }
-                todo!();
             }
             Instruction::Get => {
                 // TODO handle other cases than assertionsDisabled = false
@@ -144,9 +153,39 @@ impl Interpreter {
                 method_id,
                 simple_ref,
             } => {
-                // TODO actual stuff
+                eprintln!("{}", method_id.name);
+                // If this is not a method of the class, it's one of the special cases
+                // Or it's unhandled and we panic
+                let classname = match simple_ref {
+                    SimpleRef::Class { name } => name,
+                    SimpleRef::Array { ty } => todo!(),
+                };
+                if self.class.name != *classname {
+                    if classname == "java/lang/AssertionError" && method_id.name == "<init>" {
 
-                cur_frame.stack.pop();
+                    } else {
+                        todo!(
+                            "Handling {} method on class {} not yet implemented",
+                            method_id.name,
+                            classname
+                        );
+                    }
+                } else {
+                    let new_pc = ProgramCounter {
+                        class: self.class.name.clone(),
+                        method: method_id.clone(),
+                        idx: 0,
+                    };
+                    let new_locals = cur_frame
+                        .stack
+                        .drain(cur_frame.stack.len() - method_id.params.len()..cur_frame.stack.len())
+                        .collect();
+                    let new_frame = Frame::new(new_pc, new_locals);
+                    cur_frame.increment_pc();
+                    state.frames.push(cur_frame);
+                    state.frames.push(new_frame);
+                    return Either::State(state);
+                }
             }
             Instruction::Binary { op, ty } => match ty {
                 StackType::Int => {

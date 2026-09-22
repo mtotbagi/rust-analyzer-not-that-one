@@ -49,10 +49,10 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn new(program_counter: ProgramCounter, input: Vec<StackValue>) -> Self {
+    pub fn new(program_counter: ProgramCounter, locals: Vec<StackValue>) -> Self {
         Self {
             stack: vec![],
-            locals: input.into_iter().map(|v| Some(v)).collect(),
+            locals: locals.into_iter().map(|v| Some(v)).collect(),
             program_counter,
         }
     }
