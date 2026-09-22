@@ -3,6 +3,8 @@ use std::{fs::File, io::BufReader};
 use regex::Regex;
 use serde_json::Value;
 
+use crate::{Heap, StackValue};
+
 pub fn get_class_and_method(arg: &str) -> (String, String) {
     let re = Regex::new(r"(.*)\.(.*):(.*)").unwrap();
     let caps = re.captures(arg).unwrap();
@@ -18,4 +20,8 @@ pub fn read_json(classname: &str) -> Value {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
     serde_json::from_reader(reader).unwrap()
+}
+
+pub fn empty_input() -> (Vec<StackValue>, Heap) {
+    (vec![], Heap {heap: vec![]})
 }
