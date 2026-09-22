@@ -217,6 +217,11 @@ impl FromJson for Instruction {
                 index: u32::from_json(&json["index"]),
                 amount: i32::from_json(&json["amount"]),
             },
+            "negate" => Self::Neg {
+                ty: StackType::from_json(&json["type"]),
+            },
+            // As best as I can determine, cast doesn't actually do anything
+            "cast" => Self::NoOp,
             _ => unimplemented!("{}", json),
         }
     }

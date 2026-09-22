@@ -379,6 +379,19 @@ impl Interpreter {
                 };
                 cur_frame.locals[*index as usize] = Some(StackValue::Int(local + *amount));
             }
+            Instruction::Neg { ty } => {
+                let Some(value) = cur_frame.stack.pop() else {
+                    panic!()
+                };
+                assert!(*ty == value.get_type());
+                let res = match value {
+                    StackValue::Int(v) => StackValue::Int(-v),
+                    StackValue::Float(v) => StackValue::Float(-v),
+                    StackValue::Ref(_) => panic!(),
+                };
+                cur_frame.push(res);
+            }
+            Instruction::NoOp => {}
         }
         cur_frame.increment_pc();
         state.frames.push(cur_frame);

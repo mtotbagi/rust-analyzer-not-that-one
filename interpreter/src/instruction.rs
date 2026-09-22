@@ -40,6 +40,9 @@ pub enum Instruction {
         op: Op,
         ty: StackType,
     },
+    Neg {
+        ty: StackType,
+    },
     If {
         cond: Cond,
         target: u32,
@@ -63,6 +66,7 @@ pub enum Instruction {
         index: u32,
         amount: i32,
     },
+    NoOp,
 }
 
 #[derive(Clone, Copy, Debug)]
