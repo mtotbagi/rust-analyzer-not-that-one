@@ -100,18 +100,25 @@ impl ToSexp for State {
     }
 }
 
+impl ToSexp for ExeResult {
+    fn to_sexp(&self) -> String {
+        match self {
+            ExeResult::Ok => "ok".to_string(),
+            ExeResult::AssertErr => "\"assertion error\"".to_string(),
+            ExeResult::OutOfBounds => "\"out of bounds\"".to_string(),
+            ExeResult::NullPointer => "\"null pointer\"".to_string(),
+            ExeResult::Div0 => "\"divide by zero\"".to_string(),
+            ExeResult::NoHalt => "\"*\"".to_string(),
+            ExeResult::DidNotFinish => panic!("cannot make DidNotFinish a sexp"),
+        }
+    }
+}
+
 impl ToSexp for Either {
     fn to_sexp(&self) -> String {
         match self {
             Either::State(state) => state.to_sexp(),
-            Either::Result(exe_result) => match exe_result {
-                ExeResult::Ok => "ok".to_string(),
-                ExeResult::AssertErr => "\"assertion error\"".to_string(),
-                ExeResult::OutOfBounds => "\"out of bounds\"".to_string(),
-                ExeResult::NullPointer => "\"null pointer\"".to_string(),
-                ExeResult::Div0 => "\"divide by zero\"".to_string(),
-                ExeResult::NoHalt => "\"*\"".to_string(),
-            },
+            Either::Result(exe_result) => exe_result.to_sexp(),
         }
     }
 }

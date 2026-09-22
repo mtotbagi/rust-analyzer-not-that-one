@@ -60,7 +60,24 @@ fn main() {
         .clone();
     let input = parse_input(&method, input);
     let interpreter = Interpreter::new(class);
-    interpreter.interpret(&method, input, iter);
+    let (states, res) = interpreter.interpret(&method, input, iter);
+
+    println!("(init {} )", states[0].to_sexp());
+    for i in 0..states.len() {
+        if i == states.len() - 1 && res == ExeResult::DidNotFinish {
+            continue;
+        }
+        let state = &states[i];
+        println!("(step\n:before {}", state.to_sexp());
+        let pc = state.program_counter();
+        println!("{}", pc.to_sexp());
+        if i == states.len() - 1 {
+            println!(":after {}", res.to_sexp());
+        } else {
+            println!(":after {}", states[i + 1].to_sexp());
+        }
+        println!(")");
+    }
 }
 
 struct Interpreter {
@@ -71,27 +88,30 @@ impl Interpreter {
         Interpreter { class }
     }
 
-    pub fn interpret(&self, method: &Method, input: (Vec<StackValue>, Heap), iter: u32) {
-        let mut pc = ProgramCounter {
+    pub fn interpret(
+        &self,
+        method: &Method,
+        input: (Vec<StackValue>, Heap),
+        iter: u32,
+    ) -> (Vec<State>, ExeResult) {
+        let pc = ProgramCounter {
             class: self.class.name.clone(),
             method: method.id.clone(),
             idx: 0,
         };
         let mut state = State::new(pc.clone(), input.0, input.1);
-        println!("(init {} )", state.to_sexp());
+        let mut states = vec![state.clone()];
         for _ in 0..iter {
-            println!("(step\n:before {}", state.to_sexp());
             let res = self.step(state);
-            println!("{}", pc.to_sexp());
-            println!(":after {}", res.to_sexp());
-            println!(")");
-            state = if let Either::State(s) = res {
-                pc = s.program_counter();
-                s
-            } else {
-                return;
+            state = match res {
+                Either::State(state) => {
+                    states.push(state.clone());
+                    state
+                }
+                Either::Result(exe_result) => return (states, exe_result),
             }
         }
+        (states, ExeResult::DidNotFinish)
     }
 
     fn step(&self, mut state: State) -> Either {

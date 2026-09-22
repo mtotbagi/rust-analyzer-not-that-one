@@ -8,6 +8,7 @@ pub enum Either {
     Result(ExeResult),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExeResult {
     Ok,
     AssertErr,
@@ -15,8 +16,10 @@ pub enum ExeResult {
     NullPointer,
     Div0,
     NoHalt,
+    DidNotFinish,
 }
 
+#[derive(Clone, Debug)]
 pub struct State {
     pub heap: Heap,
     pub frames: Vec<Frame>,
@@ -38,10 +41,12 @@ impl State {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Heap {
     pub heap: Vec<HeapValue>,
 }
 
+#[derive(Clone, Debug)]
 pub struct Frame {
     pub stack: Vec<StackValue>,
     pub locals: Vec<Option<StackValue>>,
