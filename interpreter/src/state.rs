@@ -1,6 +1,6 @@
 use crate::{
     java_class::MethodId,
-    java_types::{HeapValue, SimpleType, StackType, StackValue},
+    java_types::{HeapValue, StackType, StackValue},
 };
 
 pub enum Either {

@@ -9,6 +9,15 @@ pub struct Class {
     pub methods: Box<[Method]>,
 }
 
+impl Class {
+    pub fn get_method(&self, name: &str) -> Option<&Method> {
+        self
+        .methods
+        .iter()
+        .find(|m| m.id.name == name)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Method {
     pub id: MethodId,
