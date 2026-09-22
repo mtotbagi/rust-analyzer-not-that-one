@@ -98,7 +98,14 @@ impl Interpreter {
         let Some(mut cur_frame) = state.frames.pop() else {
             panic!("Empty state!")
         };
-        let bytecode = self.class.methods.iter().filter(|m| m.id.name == cur_frame.program_counter.method.name).map(|m| &m.instructions).next().unwrap();
+        let bytecode = self
+            .class
+            .methods
+            .iter()
+            .filter(|m| m.id.name == cur_frame.program_counter.method.name)
+            .map(|m| &m.instructions)
+            .next()
+            .unwrap();
         dbg!(&bytecode[cur_frame.pc()]);
         match &bytecode[cur_frame.pc()] {
             Instruction::Load { ty, index } => cur_frame.load(*ty, *index),
@@ -124,7 +131,10 @@ impl Interpreter {
                 if let Some(old_frame) = state.frames.last_mut() {
                     if let Some(ty) = ty {
                         let Some(value) = cur_frame.stack.pop() else {
-                            panic!("Invalid frame {}, stack shouldn't be empty!", cur_frame.to_sexp())
+                            panic!(
+                                "Invalid frame {}, stack shouldn't be empty!",
+                                cur_frame.to_sexp()
+                            )
                         };
                         assert!(*ty == value.get_type());
                         old_frame.push(value);
@@ -162,7 +172,6 @@ impl Interpreter {
                 };
                 if self.class.name != *classname {
                     if classname == "java/lang/AssertionError" && method_id.name == "<init>" {
-
                     } else {
                         todo!(
                             "Handling {} method on class {} not yet implemented",
@@ -178,7 +187,9 @@ impl Interpreter {
                     };
                     let new_locals = cur_frame
                         .stack
-                        .drain(cur_frame.stack.len() - method_id.params.len()..cur_frame.stack.len())
+                        .drain(
+                            cur_frame.stack.len() - method_id.params.len()..cur_frame.stack.len(),
+                        )
                         .collect();
                     let new_frame = Frame::new(new_pc, new_locals);
                     cur_frame.increment_pc();
