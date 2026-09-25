@@ -96,7 +96,7 @@ fn main() {
 
 fn input_for_param(param: &SimpleType) -> Vec<StackValue> {
     match param {
-        SimpleType::Int => (-100..100).map(|i| StackValue::Int(i)).collect(),
+        SimpleType::Int => (-10..10).map(|i| StackValue::Int(i)).collect(),
         SimpleType::Float => todo!(),
         SimpleType::Byte => (0..256).map(|i| StackValue::Int(i)).collect(),
         SimpleType::Char => (0..256).map(|i| StackValue::Int(i)).collect(),
