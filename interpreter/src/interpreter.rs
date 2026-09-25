@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{state::ExeResult::{AssertErr, Div0, NullPointer, OutOfBounds, Ok}, *};
+use crate::{
+    state::ExeResult::{AssertErr, Div0, NullPointer, Ok, OutOfBounds},
+    *,
+};
 pub struct Interpreter {
     class: Class,
 }

@@ -23,5 +23,5 @@ pub fn read_json(classname: &str) -> Value {
 }
 
 pub fn empty_input() -> (Vec<StackValue>, Heap) {
-    (vec![], Heap {heap: vec![]})
+    (vec![], Heap { heap: vec![] })
 }

@@ -11,10 +11,7 @@ pub struct Class {
 
 impl Class {
     pub fn get_method(&self, name: &str) -> Option<&Method> {
-        self
-        .methods
-        .iter()
-        .find(|m| m.id.name == name)
+        self.methods.iter().find(|m| m.id.name == name)
     }
 }
 

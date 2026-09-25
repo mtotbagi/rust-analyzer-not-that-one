@@ -291,7 +291,7 @@ impl FromJson for MethodId {
     fn from_json(json: &Value) -> Self {
         let name = json["name"].as_str().unwrap().to_string();
         eprintln!("parsing fn: {name}");
-        
+
         let params: Box<_> = if json["params"].is_null() {
             json["args"]
                 .as_array()

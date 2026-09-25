@@ -1,5 +1,5 @@
-use std::env;
 use serde_json::Value;
+use std::env;
 
 use interpreter::*;
 
@@ -14,7 +14,8 @@ fn main() {
     let iter: u32 = args[3].parse().unwrap();
     let json: Value = read_json(&classname);
     let class = Class::from_json(&json);
-    let method = class.get_method(&methodname)
+    let method = class
+        .get_method(&methodname)
         .expect(&format!(
             "Method {} should be implemented on {}",
             methodname, classname
