@@ -10,5 +10,5 @@ regex = "1.13.1"
 [lib]
 
 [[bin]]
-name = "example1"
+name = "interpreter"
 path = "src/bin/main.rs"

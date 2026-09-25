@@ -107,12 +107,13 @@ impl FromJson for Option<SimpleType> {
                 _ => todo!(),
             }
         }
+        eprintln!("return type json: {}", json);
         let s = if json.is_string() {
             json.as_str().unwrap()
         } else if json["base"].is_string() {
             json["base"].as_str().unwrap()
-        } else if json["type"].is_string() {
-            json["type"].as_str().unwrap()
+        } else if json["type"]["base"].is_string() {
+            json["type"]["base"].as_str().unwrap()
         } else {
             return None;
         };
@@ -289,7 +290,8 @@ impl FromJson for Cond {
 impl FromJson for MethodId {
     fn from_json(json: &Value) -> Self {
         let name = json["name"].as_str().unwrap().to_string();
-
+        eprintln!("parsing fn: {name}");
+        
         let params: Box<_> = if json["params"].is_null() {
             json["args"]
                 .as_array()
@@ -307,6 +309,10 @@ impl FromJson for MethodId {
         };
 
         let ret_ty = Option::<SimpleType>::from_json(&json["returns"]);
+        // eprintln!("return type: {:?}", ret_ty);
+        // if name == "multiError" {
+        //     panic!()
+        // }
         MethodId {
             name,
             params,
