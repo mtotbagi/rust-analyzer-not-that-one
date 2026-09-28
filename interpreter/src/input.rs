@@ -5,7 +5,7 @@ use crate::{
 };
 use std::collections::HashMap;
 
-pub fn parse_input(method: &Method, input: &str) -> (Vec<StackValue>, Heap) {
+pub fn parse_input(method: &Method<i32>, input: &str) -> (Vec<StackValue<i32>>, Heap<i32>) {
     let types = &method.id.params;
     let mut heap = Heap { heap: vec![] };
 
@@ -63,7 +63,7 @@ fn split_top_level(s: &str) -> Vec<&str> {
     parts
 }
 
-fn parse_input_value(ty: &SimpleType, input: &str, heap: &mut Heap) -> StackValue {
+fn parse_input_value(ty: &SimpleType, input: &str, heap: &mut Heap<i32>) -> StackValue<i32> {
     match ty {
         SimpleType::SimpleRef(r) => parse_ref_value(r, input, heap),
         _ => parse_primitive_heap(ty, input).to_stack_value(),
@@ -72,7 +72,7 @@ fn parse_input_value(ty: &SimpleType, input: &str, heap: &mut Heap) -> StackValu
 
 /// Parses a *primitive* literal directly into a HeapValue (so array elements
 /// keep their proper variant, e.g. Char instead of being widened to Int).
-fn parse_primitive_heap(ty: &SimpleType, input: &str) -> HeapValue {
+fn parse_primitive_heap(ty: &SimpleType, input: &str) -> HeapValue<i32> {
     match ty {
         SimpleType::Int => HeapValue::Int(
             input
@@ -113,7 +113,7 @@ fn parse_char_literal(input: &str) -> u16 {
         .unwrap_or_else(|| panic!("empty char literal `{input}`")) as u16
 }
 
-fn parse_ref_value(simple_ref: &SimpleRef, input: &str, heap: &mut Heap) -> StackValue {
+fn parse_ref_value(simple_ref: &SimpleRef, input: &str, heap: &mut Heap<i32>) -> StackValue<i32> {
     match simple_ref {
         SimpleRef::Array { ty } => parse_array(ty, input, heap),
         SimpleRef::Class { name } if name == "java/lang/String" => parse_string(input, heap),
@@ -124,7 +124,7 @@ fn parse_ref_value(simple_ref: &SimpleRef, input: &str, heap: &mut Heap) -> Stac
 }
 
 /// Parses `[I:1, 2, 3]`, `[C:'h', 'e']`, `[I:]`, etc.
-fn parse_array(ty: &SimpleType, input: &str, heap: &mut Heap) -> StackValue {
+fn parse_array(ty: &SimpleType, input: &str, heap: &mut Heap<i32>) -> StackValue<i32> {
     let stripped = input
         .strip_prefix('[')
         .and_then(|s| s.strip_suffix(']'))
@@ -134,7 +134,7 @@ fn parse_array(ty: &SimpleType, input: &str, heap: &mut Heap) -> StackValue {
         .split_once(':')
         .unwrap_or_else(|| panic!("invalid array literal `{input}`, missing `:`"));
 
-    let values: Vec<HeapValue> = split_top_level(rest)
+    let values: Vec<_> = split_top_level(rest)
         .into_iter()
         .map(|elem| parse_element_heap_value(ty, elem))
         .collect();
@@ -147,7 +147,7 @@ fn parse_array(ty: &SimpleType, input: &str, heap: &mut Heap) -> StackValue {
     StackValue::Ref(Some(idx))
 }
 
-fn parse_element_heap_value(ty: &SimpleType, input: &str) -> HeapValue {
+fn parse_element_heap_value(ty: &SimpleType, input: &str) -> HeapValue<i32> {
     match ty {
         SimpleType::SimpleRef(_) => {
             unimplemented!("nested reference-typed array elements aren't supported yet")
@@ -158,13 +158,13 @@ fn parse_element_heap_value(ty: &SimpleType, input: &str) -> HeapValue {
 
 /// Parses `s'hello'` into a heap-allocated `java/lang/String` object
 /// whose `value` field is a char array (embedded directly for simplicity).
-fn parse_string(input: &str, heap: &mut Heap) -> StackValue {
+fn parse_string(input: &str, heap: &mut Heap<i32>) -> StackValue<i32> {
     let content = input
         .strip_prefix("s'")
         .and_then(|s| s.strip_suffix('\''))
         .unwrap_or_else(|| panic!("invalid string literal `{input}`, expected `s'...'`"));
 
-    let chars: Vec<HeapValue> = content.encode_utf16().map(HeapValue::Char).collect();
+    let chars: Vec<_> = content.encode_utf16().map(HeapValue::Char).collect();
 
     let mut fields = HashMap::new();
     fields.insert(

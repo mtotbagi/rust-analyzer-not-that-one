@@ -3,7 +3,7 @@ use std::{fs::File, io::BufReader};
 use regex::Regex;
 use serde_json::Value;
 
-use crate::{Heap, StackValue};
+use crate::{Heap, StackValue, abstractions::IntAbstraction};
 
 pub fn get_class_and_method(arg: &str) -> (String, String) {
     let re = Regex::new(r"(.*)\.(.*):(.*)").unwrap();
@@ -22,6 +22,6 @@ pub fn read_json(classname: &str) -> Value {
     serde_json::from_reader(reader).unwrap()
 }
 
-pub fn empty_input() -> (Vec<StackValue>, Heap) {
+pub fn empty_input<T: IntAbstraction>() -> (Vec<StackValue<T>>, Heap<T>) {
     (vec![], Heap { heap: vec![] })
 }

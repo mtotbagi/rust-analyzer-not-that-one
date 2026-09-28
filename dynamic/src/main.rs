@@ -94,7 +94,7 @@ fn main() {
     println!("{}", pred)
 }
 
-fn input_for_param(param: &SimpleType) -> Vec<StackValue> {
+fn input_for_param(param: &SimpleType) -> Vec<StackValue<i32>> {
     match param {
         SimpleType::Int => (-10..10).map(|i| StackValue::Int(i)).collect(),
         SimpleType::Float => todo!(),

@@ -1,10 +1,11 @@
 use crate::{
+    abstractions::IntAbstraction,
     java_class::MethodId,
     java_types::{HeapValue, StackType, StackValue},
 };
 
-pub enum Either {
-    State(State),
+pub enum Either<T: IntAbstraction> {
+    State(State<T>),
     Result(ExeResult),
 }
 
@@ -20,13 +21,13 @@ pub enum ExeResult {
 }
 
 #[derive(Clone, Debug)]
-pub struct State {
-    pub heap: Heap,
-    pub frames: Vec<Frame>,
+pub struct State<T: IntAbstraction> {
+    pub heap: Heap<T>,
+    pub frames: Vec<Frame<T>>,
 }
 
-impl State {
-    pub fn new(program_counter: ProgramCounter, input: Vec<StackValue>, heap: Heap) -> Self {
+impl<T: IntAbstraction> State<T> {
+    pub fn new(program_counter: ProgramCounter, input: Vec<StackValue<T>>, heap: Heap<T>) -> Self {
         Self {
             heap: heap,
             frames: vec![Frame::new(program_counter, input)],
@@ -42,19 +43,19 @@ impl State {
 }
 
 #[derive(Clone, Debug)]
-pub struct Heap {
-    pub heap: Vec<HeapValue>,
+pub struct Heap<T: IntAbstraction> {
+    pub heap: Vec<HeapValue<T>>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Frame {
-    pub stack: Vec<StackValue>,
-    pub locals: Vec<Option<StackValue>>,
+pub struct Frame<T: IntAbstraction> {
+    pub stack: Vec<StackValue<T>>,
+    pub locals: Vec<Option<StackValue<T>>>,
     pub program_counter: ProgramCounter,
 }
 
-impl Frame {
-    pub fn new(program_counter: ProgramCounter, locals: Vec<StackValue>) -> Self {
+impl<T: IntAbstraction> Frame<T> {
+    pub fn new(program_counter: ProgramCounter, locals: Vec<StackValue<T>>) -> Self {
         Self {
             stack: vec![],
             locals: locals.into_iter().map(|v| Some(v)).collect(),
@@ -85,7 +86,7 @@ impl Frame {
         }
     }
 
-    pub(crate) fn push(&mut self, value: StackValue) {
+    pub(crate) fn push(&mut self, value: StackValue<T>) {
         self.stack.push(value);
     }
 

@@ -1,10 +1,11 @@
 use crate::{
+    abstractions::IntAbstraction,
     java_class::MethodId,
     java_types::{SimpleRef, SimpleType, StackType, StackValue},
 };
 
 #[derive(Clone, Debug)]
-pub enum Instruction {
+pub enum Instruction<T: IntAbstraction> {
     Ifz {
         cond: Cond,
         target: u32,
@@ -18,7 +19,7 @@ pub enum Instruction {
         index: u32,
     },
     Push {
-        value: StackValue,
+        value: StackValue<T>,
     },
     Return {
         ty: Option<StackType>,
@@ -99,7 +100,7 @@ pub enum Access {
     Dynamic,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Cond {
     Ne,
     Eq,

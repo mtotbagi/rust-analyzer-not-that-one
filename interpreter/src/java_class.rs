@@ -1,24 +1,25 @@
 use crate::{
+    abstractions::IntAbstraction,
     instruction::Instruction,
     java_types::{SimpleRef, SimpleType},
 };
 
 #[derive(Clone, Debug)]
-pub struct Class {
+pub struct Class<T: IntAbstraction> {
     pub name: String,
-    pub methods: Box<[Method]>,
+    pub methods: Box<[Method<T>]>,
 }
 
-impl Class {
-    pub fn get_method(&self, name: &str) -> Option<&Method> {
+impl<T: IntAbstraction> Class<T> {
+    pub fn get_method(&self, name: &str) -> Option<&Method<T>> {
         self.methods.iter().find(|m| m.id.name == name)
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct Method {
+pub struct Method<T: IntAbstraction> {
     pub id: MethodId,
-    pub instructions: Box<[Instruction]>,
+    pub instructions: Box<[Instruction<T>]>,
 }
 
 #[derive(Clone, Debug)]
@@ -52,7 +53,7 @@ impl MethodId {
             SimpleType::Short => todo!(),
             SimpleType::Boolean => "Z".to_string(),
             SimpleType::SimpleRef(r) => match r.as_ref() {
-                SimpleRef::Class { name } => todo!(),
+                SimpleRef::Class { name: _ } => todo!(),
                 SimpleRef::Array { ty } => "[".to_string() + &MethodId::param_to_string(ty),
             },
         }

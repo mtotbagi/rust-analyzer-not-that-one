@@ -2,6 +2,7 @@ use serde_json::Value;
 
 use crate::{
     Access, Cond, Instruction, Op, SimpleRef, StackType, StackValue,
+    abstractions::IntAbstraction,
     java_class::{Class, Method, MethodId},
     java_types::SimpleType,
 };
@@ -28,7 +29,7 @@ impl FromJson for i32 {
     }
 }
 
-impl FromJson for StackValue {
+impl<T: IntAbstraction> FromJson for StackValue<T> {
     fn from_json(json: &Value) -> Self {
         if json.is_null() {
             return Self::Ref(None);
@@ -38,8 +39,7 @@ impl FromJson for StackValue {
             panic!("Invalid json {}", json)
         };
         match s.as_str() {
-            "int" => Self::Int(i32::from_json(&json["value"])),
-            "integer" => Self::Int(i32::from_json(&json["value"])),
+            "int" | "integer" => Self::Int(T::from_i32(i32::from_json(&json["value"]))),
             "float" => todo!(),
             "ref" => todo!(),
             _ => panic!("Invalid json {}", json),
@@ -149,7 +149,7 @@ impl FromJson for Option<StackType> {
     }
 }
 
-impl FromJson for Instruction {
+impl<T: IntAbstraction> FromJson for Instruction<T> {
     fn from_json(json: &Value) -> Self {
         let Value::String(s) = &json["opr"] else {
             panic!("Invalid json")
@@ -173,7 +173,7 @@ impl FromJson for Instruction {
                 index: u32::from_json(&json["index"]),
             },
             "push" => Self::Push {
-                value: StackValue::from_json(&json["value"]),
+                value: StackValue::<T>::from_json(&json["value"]),
             },
             "return" => Self::Return {
                 ty: Option::<StackType>::from_json(&json["type"]),
@@ -321,7 +321,7 @@ impl FromJson for MethodId {
     }
 }
 
-impl FromJson for Method {
+impl<T: IntAbstraction> FromJson for Method<T> {
     fn from_json(json: &Value) -> Self {
         let instructions: Box<_> = json["code"]["bytecode"]
             .as_array()
@@ -337,7 +337,7 @@ impl FromJson for Method {
     }
 }
 
-impl FromJson for Class {
+impl<T: IntAbstraction> FromJson for Class<T> {
     fn from_json(json: &Value) -> Self {
         let name = json["name"].as_str().unwrap().to_string();
         let methods: Box<_> = json["methods"]

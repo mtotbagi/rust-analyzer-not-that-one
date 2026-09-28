@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 
+use crate::abstractions::IntAbstraction;
+
 #[derive(Clone, Copy, Debug)]
-pub enum StackValue {
-    Int(i32),
+pub enum StackValue<T: IntAbstraction> {
+    Int(T),
     Float(f32),
     Ref(Option<u32>),
 }
 
-impl StackValue {
+impl<T: IntAbstraction> StackValue<T> {
     pub fn get_type(&self) -> StackType {
         match self {
             StackValue::Int(_) => StackType::Int,
@@ -16,7 +18,7 @@ impl StackValue {
         }
     }
 
-    pub fn to_heap_value(&self) -> HeapValue {
+    pub fn to_heap_value(&self) -> HeapValue<T> {
         match self {
             StackValue::Int(i) => HeapValue::Int(*i),
             StackValue::Float(f) => HeapValue::Float(*f),
@@ -26,30 +28,30 @@ impl StackValue {
 }
 
 #[derive(Clone, Debug)]
-pub enum HeapValue {
-    Int(i32),
+pub enum HeapValue<T: IntAbstraction> {
+    Int(T),
     Float(f32),
     Byte(u8),
     Char(u16),
     Short(i16),
     Array {
         ty: SimpleType,
-        values: Vec<HeapValue>,
+        values: Vec<HeapValue<T>>,
     },
     Object {
         name: String,
-        fields: HashMap<String, HeapValue>,
+        fields: HashMap<String, HeapValue<T>>,
     },
 }
 
-impl HeapValue {
-    pub fn to_stack_value(&self) -> StackValue {
+impl<T: IntAbstraction> HeapValue<T> {
+    pub fn to_stack_value(&self) -> StackValue<T> {
         match self {
             HeapValue::Int(i) => StackValue::Int(*i),
             HeapValue::Float(f) => StackValue::Float(*f),
-            HeapValue::Byte(b) => StackValue::Int(*b as i32),
-            HeapValue::Short(s) => StackValue::Int(*s as i32),
-            HeapValue::Char(c) => StackValue::Int(*c as i32),
+            HeapValue::Byte(b) => todo!(),
+            HeapValue::Short(s) => todo!(),
+            HeapValue::Char(c) => todo!(),
             _ => panic!("Can't convert to StackValue"),
         }
     }
