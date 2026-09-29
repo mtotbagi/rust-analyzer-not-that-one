@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use crate::abstractions::IntAbstraction;
+use crate::abstractions::IntLike;
 
 #[derive(Clone, Copy, Debug)]
-pub enum StackValue<T: IntAbstraction> {
+pub enum StackValue<T: IntLike> {
     Int(T),
     Float(f32),
     Ref(Option<u32>),
 }
 
-impl<T: IntAbstraction> StackValue<T> {
+impl<T: IntLike> StackValue<T> {
     pub fn get_type(&self) -> StackType {
         match self {
             StackValue::Int(_) => StackType::Int,
@@ -28,7 +28,7 @@ impl<T: IntAbstraction> StackValue<T> {
 }
 
 #[derive(Clone, Debug)]
-pub enum HeapValue<T: IntAbstraction> {
+pub enum HeapValue<T: IntLike> {
     Int(T),
     Float(f32),
     Byte(u8),
@@ -44,7 +44,7 @@ pub enum HeapValue<T: IntAbstraction> {
     },
 }
 
-impl<T: IntAbstraction> HeapValue<T> {
+impl<T: IntLike> HeapValue<T> {
     pub fn to_stack_value(&self) -> StackValue<T> {
         match self {
             HeapValue::Int(i) => StackValue::Int(*i),

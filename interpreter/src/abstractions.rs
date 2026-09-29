@@ -1,13 +1,18 @@
 use crate::Cond;
 use std::fmt::Debug;
 
-pub trait IntAbstraction: ToString + Copy + Debug {
+pub trait IntLike: ToString + Copy + Debug {
     fn ifz(cond: Cond, value: Self) -> Vec<bool>;
     fn cmp(cond: Cond, lhs: Self, rhs: Self) -> Vec<bool>;
     fn from_i32(value: i32) -> Self;
 }
 
-impl IntAbstraction for i32 {
+pub trait IntAbstraction: IntLike {
+    fn new_int() -> Self;
+    fn new_bool() -> Self;
+}
+
+impl IntLike for i32 {
     fn ifz(cond: Cond, value: Self) -> Vec<bool> {
         vec![cond.cmp_with(value as i64, 0)]
     }
@@ -39,7 +44,7 @@ impl Sign {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct SignSet([bool; 3]);
+pub struct SignSet([bool; 3]);
 
 impl SignSet {
     fn from_sign(sign: Sign) -> Self {
@@ -58,7 +63,7 @@ impl SignSet {
     }
 }
 
-impl IntAbstraction for SignSet {
+impl IntLike for SignSet {
     fn ifz(cond: Cond, value: Self) -> Vec<bool> {
         let mut res = vec![];
         for sign in value.signs() {
@@ -126,5 +131,15 @@ impl IntAbstraction for SignSet {
 impl ToString for SignSet {
     fn to_string(&self) -> String {
         self.0.iter().filter(|&&b| b).count().to_string()
+    }
+}
+
+impl IntAbstraction for SignSet {
+    fn new_int() -> Self {
+        Self([true,true,true])
+    }
+    
+    fn new_bool() -> Self {
+        Self([false,true,true])
     }
 }

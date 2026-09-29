@@ -1,10 +1,10 @@
 use crate::{
-    abstractions::IntAbstraction,
+    abstractions::IntLike,
     java_class::MethodId,
     java_types::{HeapValue, StackType, StackValue},
 };
 
-pub enum Either<T: IntAbstraction> {
+pub enum Either<T: IntLike> {
     State(State<T>),
     Result(ExeResult),
 }
@@ -21,12 +21,12 @@ pub enum ExeResult {
 }
 
 #[derive(Clone, Debug)]
-pub struct State<T: IntAbstraction> {
+pub struct State<T: IntLike> {
     pub heap: Heap<T>,
     pub frames: Vec<Frame<T>>,
 }
 
-impl<T: IntAbstraction> State<T> {
+impl<T: IntLike> State<T> {
     pub fn new(program_counter: ProgramCounter, input: Vec<StackValue<T>>, heap: Heap<T>) -> Self {
         Self {
             heap: heap,
@@ -43,18 +43,18 @@ impl<T: IntAbstraction> State<T> {
 }
 
 #[derive(Clone, Debug)]
-pub struct Heap<T: IntAbstraction> {
+pub struct Heap<T: IntLike> {
     pub heap: Vec<HeapValue<T>>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Frame<T: IntAbstraction> {
+pub struct Frame<T: IntLike> {
     pub stack: Vec<StackValue<T>>,
     pub locals: Vec<Option<StackValue<T>>>,
     pub program_counter: ProgramCounter,
 }
 
-impl<T: IntAbstraction> Frame<T> {
+impl<T: IntLike> Frame<T> {
     pub fn new(program_counter: ProgramCounter, locals: Vec<StackValue<T>>) -> Self {
         Self {
             stack: vec![],

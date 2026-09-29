@@ -1,23 +1,23 @@
 use crate::{
-    abstractions::IntAbstraction,
+    abstractions::IntLike,
     instruction::Instruction,
     java_types::{SimpleRef, SimpleType},
 };
 
 #[derive(Clone, Debug)]
-pub struct Class<T: IntAbstraction> {
+pub struct Class<T: IntLike> {
     pub name: String,
     pub methods: Box<[Method<T>]>,
 }
 
-impl<T: IntAbstraction> Class<T> {
+impl<T: IntLike> Class<T> {
     pub fn get_method(&self, name: &str) -> Option<&Method<T>> {
         self.methods.iter().find(|m| m.id.name == name)
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct Method<T: IntAbstraction> {
+pub struct Method<T: IntLike> {
     pub id: MethodId,
     pub instructions: Box<[Instruction<T>]>,
 }

@@ -1,11 +1,11 @@
 use crate::{
-    abstractions::IntAbstraction,
+    abstractions::IntLike,
     java_class::MethodId,
     java_types::{SimpleRef, SimpleType, StackType, StackValue},
 };
 
 #[derive(Clone, Debug)]
-pub enum Instruction<T: IntAbstraction> {
+pub enum Instruction<T: IntLike> {
     Ifz {
         cond: Cond,
         target: u32,

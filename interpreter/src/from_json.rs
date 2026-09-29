@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::{
     Access, Cond, Instruction, Op, SimpleRef, StackType, StackValue,
-    abstractions::IntAbstraction,
+    abstractions::IntLike,
     java_class::{Class, Method, MethodId},
     java_types::SimpleType,
 };
@@ -29,7 +29,7 @@ impl FromJson for i32 {
     }
 }
 
-impl<T: IntAbstraction> FromJson for StackValue<T> {
+impl<T: IntLike> FromJson for StackValue<T> {
     fn from_json(json: &Value) -> Self {
         if json.is_null() {
             return Self::Ref(None);
@@ -149,7 +149,7 @@ impl FromJson for Option<StackType> {
     }
 }
 
-impl<T: IntAbstraction> FromJson for Instruction<T> {
+impl<T: IntLike> FromJson for Instruction<T> {
     fn from_json(json: &Value) -> Self {
         let Value::String(s) = &json["opr"] else {
             panic!("Invalid json")
@@ -321,7 +321,7 @@ impl FromJson for MethodId {
     }
 }
 
-impl<T: IntAbstraction> FromJson for Method<T> {
+impl<T: IntLike> FromJson for Method<T> {
     fn from_json(json: &Value) -> Self {
         let instructions: Box<_> = json["code"]["bytecode"]
             .as_array()
@@ -337,7 +337,7 @@ impl<T: IntAbstraction> FromJson for Method<T> {
     }
 }
 
-impl<T: IntAbstraction> FromJson for Class<T> {
+impl<T: IntLike> FromJson for Class<T> {
     fn from_json(json: &Value) -> Self {
         let name = json["name"].as_str().unwrap().to_string();
         let methods: Box<_> = json["methods"]

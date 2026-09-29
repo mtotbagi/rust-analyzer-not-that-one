@@ -1,12 +1,12 @@
 use crate::{
-    Either, ExeResult, Frame, Heap, ProgramCounter, StackValue, State, abstractions::IntAbstraction,
+    Either, ExeResult, Frame, Heap, ProgramCounter, StackValue, State, abstractions::IntLike,
 };
 
 pub trait ToSexp {
     fn to_sexp(&self) -> String;
 }
 
-impl<T: IntAbstraction> ToSexp for StackValue<T> {
+impl<T: IntLike> ToSexp for StackValue<T> {
     fn to_sexp(&self) -> String {
         let mut res = "(".to_string();
         match self {
@@ -32,7 +32,7 @@ impl<T: IntAbstraction> ToSexp for StackValue<T> {
     }
 }
 
-impl<T: IntAbstraction> ToSexp for Option<StackValue<T>> {
+impl<T: IntLike> ToSexp for Option<StackValue<T>> {
     fn to_sexp(&self) -> String {
         if let Some(stack_val) = self {
             stack_val.to_sexp()
@@ -55,7 +55,7 @@ impl ToSexp for ProgramCounter {
     }
 }
 
-impl<T: IntAbstraction> ToSexp for Frame<T> {
+impl<T: IntLike> ToSexp for Frame<T> {
     fn to_sexp(&self) -> String {
         let mut res = "(frame\n".to_string();
         res += ":locals (\n";
@@ -75,13 +75,13 @@ impl<T: IntAbstraction> ToSexp for Frame<T> {
     }
 }
 
-impl<T: IntAbstraction> ToSexp for Heap<T> {
+impl<T: IntLike> ToSexp for Heap<T> {
     fn to_sexp(&self) -> String {
         "()\n".to_string()
     }
 }
 
-impl<T: IntAbstraction> ToSexp for State<T> {
+impl<T: IntLike> ToSexp for State<T> {
     fn to_sexp(&self) -> String {
         let mut res = "(state\n".to_string();
 
@@ -116,7 +116,7 @@ impl ToSexp for ExeResult {
     }
 }
 
-impl<T: IntAbstraction> ToSexp for Either<T> {
+impl<T: IntLike> ToSexp for Either<T> {
     fn to_sexp(&self) -> String {
         match self {
             Either::State(state) => state.to_sexp(),

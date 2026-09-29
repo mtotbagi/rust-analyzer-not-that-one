@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
 use crate::{
-    abstractions::IntAbstraction,
-    state::ExeResult::{AssertErr, Div0, NullPointer, Ok, OutOfBounds},
-    *,
+    abstractions::{IntAbstraction, IntLike}, state::ExeResult::{AssertErr, Div0, NullPointer, Ok, OutOfBounds}, *,
 };
-pub struct Interpreter<T: IntAbstraction> {
+pub struct Interpreter<T: IntLike> {
     class: Class<T>,
 }
 
@@ -37,12 +35,14 @@ impl Interpreter<i32> {
     }
 }
 
-impl<T: IntAbstraction> Interpreter<T> {
+impl<T: IntLike> Interpreter<T> {
     pub fn new(class: Class<T>) -> Self {
         Interpreter { class }
     }
 
-    
+    fn multistep(&self, states: Vec<State<T>>) -> Vec<Either<T>> {
+        states.into_iter().flat_map(|state| self.step(state)).collect()
+    }
 
     fn step(&self, mut state: State<T>) -> Vec<Either<T>> {
         let Some(mut cur_frame) = state.frames.pop() else {
@@ -368,5 +368,32 @@ impl<T: IntAbstraction> Interpreter<T> {
         cur_frame.increment_pc();
         state.frames.push(cur_frame);
         vec![Either::State(state)]
+    }
+}
+
+impl<T: IntAbstraction> Interpreter<T> {
+    pub fn static_analyze(&self, method: &Method<T>, iter: u32) -> Vec<ExeResult> {
+        let input = abstract_input::<T>(&method.id.params);
+        let pc = ProgramCounter {
+            class: self.class.name.clone(),
+            method: method.id.clone(),
+            idx: 0,
+        };
+        let mut states = vec![State::new(pc.clone(), input.0, input.1)];
+        let mut results = vec![];
+        for _ in 0..iter {
+            states = self.multistep(states).into_iter().filter_map(|res| {
+                match res {
+                    Either::State(state) => Some(state),
+                    Either::Result(exe_result) => {
+                        if !results.contains(&exe_result) {
+                            results.push(exe_result);
+                        }
+                        None
+                    },
+                }
+            }).collect();
+        }
+        results
     }
 }
