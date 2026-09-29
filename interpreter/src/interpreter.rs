@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use crate::{
-    abstractions::{IntAbstraction, IntLike}, state::ExeResult::{AssertErr, Div0, NullPointer, Ok, OutOfBounds}, *,
+    abstractions::{IntAbstraction, IntLike},
+    state::ExeResult::{AssertErr, Div0, Ok},
+    *,
 };
 pub struct Interpreter<T: IntLike> {
     class: Class<T>,
@@ -41,7 +43,10 @@ impl<T: IntLike> Interpreter<T> {
     }
 
     fn multistep(&self, states: Vec<State<T>>) -> Vec<Either<T>> {
-        states.into_iter().flat_map(|state| self.step(state)).collect()
+        states
+            .into_iter()
+            .flat_map(|state| self.step(state))
+            .collect()
     }
 
     fn step(&self, mut state: State<T>) -> Vec<Either<T>> {
@@ -119,7 +124,7 @@ impl<T: IntLike> Interpreter<T> {
                 });
             }
             Instruction::Invoke {
-                access,
+                access: _,
                 method_id,
                 simple_ref,
             } => {
@@ -128,7 +133,7 @@ impl<T: IntLike> Interpreter<T> {
                 // Or it's unhandled and we panic
                 let classname = match simple_ref {
                     SimpleRef::Class { name } => name,
-                    SimpleRef::Array { ty } => todo!(),
+                    SimpleRef::Array { ty: _ } => todo!(),
                 };
                 if self.class.name != *classname {
                     if classname == "java/lang/AssertionError" && method_id.name == "<init>" {
@@ -160,18 +165,25 @@ impl<T: IntLike> Interpreter<T> {
             }
             Instruction::Binary { op, ty } => match ty {
                 StackType::Int => {
-                    todo!()
-                    // let Some(StackValue::Int(rhs)) = cur_frame.stack.pop() else {
-                    //     panic!()
-                    // };
-                    // let Some(StackValue::Int(lhs)) = cur_frame.stack.pop() else {
-                    //     panic!()
-                    // };
-                    // dbg!(lhs, rhs);
-                    // match op.op_int(lhs, rhs) {
-                    //     Some(result) => cur_frame.stack.push(StackValue::Int(result)),
-                    //     None => return Either::Result(Div0),
-                    // }
+                    let Some(StackValue::Int(rhs)) = cur_frame.stack.pop() else {
+                        panic!()
+                    };
+                    let Some(StackValue::Int(lhs)) = cur_frame.stack.pop() else {
+                        panic!()
+                    };
+                    dbg!(lhs, rhs);
+                    let op_res = T::bin_op(*op, lhs, rhs);
+                    let mut states = vec![];
+                    if op_res.div_error {
+                        states.push(Either::Result(Div0));
+                    }
+                    if let Some(value) = op_res.result {
+                        cur_frame.stack.push(StackValue::Int(value));
+                        cur_frame.increment_pc();
+                        state.frames.push(cur_frame);
+                        states.push(Either::State(state));
+                    }
+                    return states;
                 }
                 StackType::Float => todo!(),
                 StackType::Ref => panic!("Cannot use ref for arithmetic operations!"),
@@ -179,14 +191,14 @@ impl<T: IntLike> Interpreter<T> {
             Instruction::If { cond, target } => {
                 let rhs = match cur_frame.stack.pop() {
                     Some(StackValue::Int(i)) => i,
-                    Some(StackValue::Ref(Some(i))) => todo!(),
+                    Some(StackValue::Ref(Some(_))) => todo!(),
                     Some(StackValue::Ref(None)) => todo!(),
                     Some(_) => panic!(),
                     None => panic!(),
                 };
                 let lhs = match cur_frame.stack.pop() {
                     Some(StackValue::Int(i)) => i,
-                    Some(StackValue::Ref(Some(i))) => todo!(),
+                    Some(StackValue::Ref(Some(_))) => todo!(),
                     Some(StackValue::Ref(None)) => todo!(),
                     Some(_) => panic!(),
                     None => panic!(),
@@ -382,17 +394,22 @@ impl<T: IntAbstraction> Interpreter<T> {
         let mut states = vec![State::new(pc.clone(), input.0, input.1)];
         let mut results = vec![];
         for _ in 0..iter {
-            states = self.multistep(states).into_iter().filter_map(|res| {
-                match res {
+            states = self
+                .multistep(states)
+                .into_iter()
+                .filter_map(|res| match res {
                     Either::State(state) => Some(state),
                     Either::Result(exe_result) => {
                         if !results.contains(&exe_result) {
                             results.push(exe_result);
                         }
                         None
-                    },
-                }
-            }).collect();
+                    }
+                })
+                .collect();
+        }
+        if !states.is_empty() {
+            results.push(ExeResult::DidNotFinish);
         }
         results
     }

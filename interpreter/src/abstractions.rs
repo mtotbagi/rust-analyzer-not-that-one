@@ -1,9 +1,15 @@
-use crate::Cond;
+use crate::{Cond, Op};
 use std::fmt::Debug;
+
+pub struct BinOpResult<T: IntLike> {
+    pub result: Option<T>,
+    pub div_error: bool,
+}
 
 pub trait IntLike: ToString + Copy + Debug {
     fn ifz(cond: Cond, value: Self) -> Vec<bool>;
     fn cmp(cond: Cond, lhs: Self, rhs: Self) -> Vec<bool>;
+    fn bin_op(op: Op, lhs: Self, rhs: Self) -> BinOpResult<Self>;
     fn from_i32(value: i32) -> Self;
 }
 
@@ -23,6 +29,19 @@ impl IntLike for i32 {
     fn cmp(cond: Cond, lhs: Self, rhs: Self) -> Vec<bool> {
         vec![cond.cmp_with(lhs as i64, rhs as i64)]
     }
+
+    fn bin_op(op: Op, lhs: Self, rhs: Self) -> BinOpResult<Self> {
+        match op.op_int(lhs, rhs) {
+            Some(result) => BinOpResult {
+                result: Some(result),
+                div_error: false,
+            },
+            None => BinOpResult {
+                result: None,
+                div_error: true,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -39,6 +58,27 @@ impl Sign {
             1 => Self::Zero,
             2 => Self::Pos,
             _ => panic!(),
+        }
+    }
+
+    fn bin_op(op: Op, lhs: Self, rhs: Self) -> Option<SignSet> {
+        match (op, lhs, rhs) {
+            (Op::Add | Op::Sub, a, Sign::Zero) => Some(SignSet::from_sign(a)),
+            (Op::Add, Sign::Zero, a) => Some(SignSet::from_sign(a)),
+            (Op::Sub, Sign::Zero, Sign::Neg) => Some(SignSet::from_sign(Sign::Pos)),
+            (Op::Sub, Sign::Zero, Sign::Pos) => Some(SignSet::from_sign(Sign::Neg)),
+            // Because over/underflow anything can happen :(
+            (Op::Add | Op::Sub, _, _) => Some(SignSet([true,true,true])),
+            (Op::Mul, Sign::Zero, _) | (Op::Mul, _, Sign::Zero) => Some(SignSet::from_sign(Sign::Zero)),
+            (Op::Mul, _, _) => Some(SignSet([true,true,true])),
+            (Op::Div | Op::Rem, _, Sign::Zero) => None,
+            (Op::Div | Op::Rem, Sign::Zero, _) => Some(SignSet::from_sign(Sign::Zero)),
+            (Op::Div, Sign::Neg, Sign::Pos) => Some(SignSet([true,true,false])),
+            (Op::Div, Sign::Pos, Sign::Neg) => Some(SignSet([true,true,false])),
+            (Op::Div, Sign::Pos, Sign::Pos) => Some(SignSet([false,true,true])),
+            (Op::Div, Sign::Neg, Sign::Neg) => Some(SignSet([true,true,true])),
+            (Op::Rem, Sign::Neg, _) => Some(SignSet([true,true,false])),
+            (Op::Rem, Sign::Pos, _) => Some(SignSet([false,true,true])),
         }
     }
 }
@@ -60,6 +100,11 @@ impl SignSet {
                 if b { Some(Sign::from_usize(i)) } else { None }
             },
         )
+    }
+    fn union_with(&mut self, other: &Self) {
+        for i in 0..3 {
+            self.0[i] |= other.0[i]
+        }
     }
 }
 
@@ -126,6 +171,26 @@ impl IntLike for SignSet {
         }
         res
     }
+
+    fn bin_op(op: Op, lhs: Self, rhs: Self) -> BinOpResult<Self> {
+        dbg!(op, lhs, rhs);
+        let mut res = Self([true,true,true]);
+        let mut div_error = false;
+        for s1 in lhs.signs() {
+            for s2 in rhs.signs() {
+                match Sign::bin_op(op, s1, s2) {
+                    Some(a) => res.union_with(&a),
+                    None => div_error = true,
+                }
+            }
+        }
+        let result = if res.signs().next().is_none() {
+            None
+        } else {
+            Some(res)
+        };
+        BinOpResult { result, div_error }
+    }
 }
 
 impl ToString for SignSet {
@@ -136,10 +201,10 @@ impl ToString for SignSet {
 
 impl IntAbstraction for SignSet {
     fn new_int() -> Self {
-        Self([true,true,true])
+        Self([true, true, true])
     }
-    
+
     fn new_bool() -> Self {
-        Self([false,true,true])
+        Self([false, true, true])
     }
 }

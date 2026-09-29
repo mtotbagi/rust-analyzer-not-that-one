@@ -3,7 +3,10 @@ use std::{fs::File, io::BufReader};
 use regex::Regex;
 use serde_json::Value;
 
-use crate::{Heap, SimpleType, StackValue, abstractions::{IntAbstraction, IntLike}};
+use crate::{
+    Heap, SimpleType, StackValue,
+    abstractions::{IntAbstraction, IntLike},
+};
 
 pub fn get_class_and_method(arg: &str) -> (String, String) {
     let re = Regex::new(r"(.*)\.(.*):(.*)").unwrap();
@@ -27,7 +30,7 @@ pub fn empty_input<T: IntLike>() -> (Vec<StackValue<T>>, Heap<T>) {
 }
 
 pub fn abstract_input<T: IntAbstraction>(params: &[SimpleType]) -> (Vec<StackValue<T>>, Heap<T>) {
-    let heap = Heap {heap: vec![]};
+    let heap = Heap { heap: vec![] };
     let mut locals = Vec::with_capacity(params.len());
 
     for p in params {
