@@ -12,3 +12,6 @@ regex = "1.13.1"
 [[bin]]
 name = "interpreter"
 path = "src/bin/main.rs"
+[[bin]]
+name = "abstract_interpreter"
+path = "src/bin/abstract_interpreter.rs"

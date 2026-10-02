@@ -10,6 +10,7 @@ pub trait IntLike: ToString + Copy + Debug {
     fn ifz(cond: Cond, value: Self) -> Vec<bool>;
     fn cmp(cond: Cond, lhs: Self, rhs: Self) -> Vec<bool>;
     fn bin_op(op: Op, lhs: Self, rhs: Self) -> BinOpResult<Self>;
+    fn neg(self) -> Self;
     fn from_i32(value: i32) -> Self;
 }
 
@@ -41,6 +42,10 @@ impl IntLike for i32 {
                 div_error: true,
             },
         }
+    }
+    
+    fn neg(self) -> Self {
+        self.wrapping_neg()
     }
 }
 
@@ -190,6 +195,12 @@ impl IntLike for SignSet {
             Some(res)
         };
         BinOpResult { result, div_error }
+    }
+    
+    fn neg(self) -> Self {
+        // Because in wrapping integer arithmetic -int::minvalue = -int::minvalue
+        // From neg we can get neg or pos
+        Self([self.0[2] | self.0[0], self.0[1], self.0[0]])
     }
 }
 

@@ -356,24 +356,25 @@ impl<T: IntLike> Interpreter<T> {
             //         panic!("Not array ref");
             //     }
             // }
-            // Instruction::Incr { index, amount } => {
-            //     let StackValue::Int(local) = cur_frame.locals[*index as usize].unwrap() else {
-            //         panic!("Local must be an int, local: {}", index);
-            //     };
-            //     cur_frame.locals[*index as usize] = Some(StackValue::Int(local + *amount));
-            // }
-            // Instruction::Neg { ty } => {
-            //     let Some(value) = cur_frame.stack.pop() else {
-            //         panic!()
-            //     };
-            //     assert!(*ty == value.get_type());
-            //     let res = match value {
-            //         StackValue::Int(v) => StackValue::Int(-v),
-            //         StackValue::Float(v) => StackValue::Float(-v),
-            //         StackValue::Ref(_) => panic!(),
-            //     };
-            //     cur_frame.push(res);
-            // }
+            Instruction::Incr { index, amount } => {
+                let StackValue::Int(local) = cur_frame.locals[*index as usize].unwrap() else {
+                    panic!("Local must be an int, local: {}", index);
+                };
+                let result = T::bin_op(Op::Add, local, T::from_i32(*amount)).result.unwrap();
+                cur_frame.locals[*index as usize] = Some(StackValue::Int(result));
+            }
+            Instruction::Neg { ty } => {
+                let Some(value) = cur_frame.stack.pop() else {
+                    panic!()
+                };
+                assert!(*ty == value.get_type());
+                let res = match value {
+                    StackValue::Int(v) => StackValue::Int(v.neg()),
+                    StackValue::Float(v) => StackValue::Float(-v),
+                    StackValue::Ref(_) => panic!(),
+                };
+                cur_frame.push(res);
+            }
             Instruction::NoOp => {}
             _ => todo!(),
         }
@@ -384,7 +385,7 @@ impl<T: IntLike> Interpreter<T> {
 }
 
 impl<T: IntAbstraction> Interpreter<T> {
-    pub fn static_analyze(&self, method: &Method<T>, iter: u32) -> Vec<ExeResult> {
+    pub fn abstract_interpret(&self, method: &Method<T>, iter: u32) -> Vec<ExeResult> {
         let input = abstract_input::<T>(&method.id.params);
         let pc = ProgramCounter {
             class: self.class.name.clone(),

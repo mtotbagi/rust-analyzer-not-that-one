@@ -47,7 +47,7 @@ fn main() {
     };
 
     let interpreter = Interpreter::new(class);
-    let results = interpreter.static_analyze(&method, 100);
+    let results = interpreter.abstract_interpret(&method, 100);
     for res in results {
         match res {
             ExeResult::Ok => pred.ok = "yes".to_string(),
