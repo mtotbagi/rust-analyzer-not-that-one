@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    ExeResult::{NullPointer, OutOfBounds},
     abstractions::{IntAbstraction, IntLike},
     state::ExeResult::{AssertErr, Div0, Ok},
     *,
@@ -226,105 +227,102 @@ impl<T: IntLike> Interpreter<T> {
                 return vec![Either::State(state)];
             }
             Instruction::Placeholder => todo!(),
-            // Instruction::NewArray { dim, ty } => {
-            //     // length is the product of dimensions
-            //     // array elements are accessed by only one index so dimensions don't need to be saved?
-            //     // let arr_length = (0..dim).map(|| cur_frame.stack.pop()).product();
+            Instruction::NewArray { dim, ty } => {
+                // length is the product of dimensions
+                // array elements are accessed by only one index so dimensions don't need to be saved?
+                // let arr_length = (0..dim).map(|| cur_frame.stack.pop()).product();
 
-            //     if *dim != 1 {
-            //         todo!("Only one dimensional arrays are supported currently!");
-            //     }
+                if *dim != 1 {
+                    todo!("Only one dimensional arrays are supported currently!");
+                }
 
-            //     let len = if let StackValue::Int(x) = cur_frame.stack.pop().unwrap() {
-            //         x as usize
-            //     } else {
-            //         panic!("Invalid array length!")
-            //     };
+                let len = if let StackValue::Int(x) = cur_frame.stack.pop().unwrap() {
+                    x
+                } else {
+                    panic!("Invalid array length!")
+                };
 
-            //     // 0 as default
-            //     let arr = match ty {
-            //         SimpleType::Int => {
-            //             vec![HeapValue::Int(0); len]
-            //         }
-            //         SimpleType::Float => {
-            //             vec![HeapValue::Float(0.0); len]
-            //         }
-            //         SimpleType::Byte => {
-            //             vec![HeapValue::Byte(0); len]
-            //         }
-            //         SimpleType::Char => {
-            //             vec![HeapValue::Char(0); len]
-            //         }
-            //         SimpleType::Short => {
-            //             vec![HeapValue::Short(0); len]
-            //         }
-            //         SimpleType::Boolean => todo!(),
-            //         SimpleType::SimpleRef(_) => todo!(),
-            //     };
+                // 0 as default
+                let default_value = match ty {
+                    SimpleType::Int => HeapValue::Int(T::from_i32(0)),
+                    SimpleType::Float => HeapValue::Float(0.0),
+                    SimpleType::Byte => HeapValue::Byte(0),
+                    SimpleType::Char => HeapValue::Char(0),
+                    SimpleType::Short => HeapValue::Short(0),
+                    SimpleType::Boolean => todo!(),
+                    SimpleType::SimpleRef(_) => todo!(),
+                };
+                let arr: <T as IntLike>::Array<HeapValue<T>> = T::new_array(len, default_value);
 
-            //     cur_frame
-            //         .stack
-            //         .push(StackValue::Ref(Some(state.heap.heap.len() as u32)));
-            //     state.heap.heap.push(HeapValue::Array {
-            //         ty: ty.clone(),
-            //         values: arr,
-            //     });
-            // }
-            // Instruction::ArrayStore { ty } => {
-            //     let val = cur_frame
-            //         .stack
-            //         .pop()
-            //         .expect("[ArraySotre]: value not on stack");
-            //     let StackValue::Int(idx) = cur_frame
-            //         .stack
-            //         .pop()
-            //         .expect("[ArraySotre]: index not on stack")
-            //     else {
-            //         panic!("Expected an Int");
-            //     };
+                cur_frame
+                    .stack
+                    .push(StackValue::Ref(Some(state.heap.heap.len() as u32)));
+                state.heap.heap.push(HeapValue::Array {
+                    ty: ty.clone(),
+                    values: arr,
+                });
+            }
+            Instruction::ArrayStore { ty } => {
+                let val = cur_frame
+                    .stack
+                    .pop()
+                    .expect("[ArraySotre]: value not on stack");
+                let StackValue::Int(idx) = cur_frame
+                    .stack
+                    .pop()
+                    .expect("[ArraySotre]: index not on stack")
+                else {
+                    panic!("Expected an Int");
+                };
 
-            //     let StackValue::Ref(arr_ref) = cur_frame
-            //         .stack
-            //         .pop()
-            //         .expect("[ArraySotre]: arrayref not on stack")
-            //     else {
-            //         panic!("Expected a Ref");
-            //     };
+                let StackValue::Ref(arr_ref) = cur_frame
+                    .stack
+                    .pop()
+                    .expect("[ArraySotre]: arrayref not on stack")
+                else {
+                    panic!("Expected a Ref");
+                };
 
-            //     let Some(arr) = arr_ref else {
-            //         return Either::Result(NullPointer);
-            //     };
+                let Some(arr) = arr_ref else {
+                    return vec![Either::Result(NullPointer)];
+                };
 
-            //     if let HeapValue::Array { ty, values } = &mut state.heap.heap[arr as usize] {
-            //         // TODO: check type
-            //         if idx as usize >= values.len() {
-            //             return Either::Result(OutOfBounds);
-            //         }
+                if let HeapValue::Array { ty, values } = &mut state.heap.heap[arr as usize] {
+                    // TODO: check type
+                    let res = T::array_store(val.to_heap_value(), idx, values);
+                    let mut states = vec![];
+                    if res.contains(&true) {
+                        cur_frame.increment_pc();
+                        state.frames.push(cur_frame);
+                        states.push(Either::State(state));
+                    }
+                    if res.contains(&false) {
+                        states.push(Either::Result(OutOfBounds));
+                    }
+                    return states;
+                } else {
+                    panic!("Not array ref");
+                }
+            }
+            Instruction::ArrayLength => {
+                let StackValue::Ref(arr_ref) = cur_frame
+                    .stack
+                    .pop()
+                    .expect("[ArraySotre]: arrayref not on stack")
+                else {
+                    panic!("Expected a Ref");
+                };
 
-            //         values[idx as usize] = val.to_heap_value();
-            //     } else {
-            //         panic!("Not array ref");
-            //     }
-            // }
-            // Instruction::ArrayLength => {
-            //     let StackValue::Ref(arr_ref) = cur_frame
-            //         .stack
-            //         .pop()
-            //         .expect("[ArraySotre]: arrayref not on stack")
-            //     else {
-            //         panic!("Expected a Ref");
-            //     };
+                let Some(arr) = arr_ref else {
+                    return vec![Either::Result(NullPointer)];
+                };
 
-            //     let Some(arr) = arr_ref else {
-            //         return Either::Result(NullPointer);
-            //     };
-
-            //     if let HeapValue::Array { values, .. } = &state.heap.heap[arr as usize] {
-            //         cur_frame.push(StackValue::Int(values.len() as i32));
-            //     } else {
-            //         panic!("Not array ref");
-            //     }
-            // }
+                if let HeapValue::Array { values, .. } = &state.heap.heap[arr as usize] {
+                    cur_frame.push(StackValue::Int(T::array_len(values)));
+                } else {
+                    panic!("Not array ref");
+                }
+            }
             // Instruction::ArrayLoad { ty } => {
             //     let StackValue::Int(idx) = cur_frame
             //         .stack
@@ -360,7 +358,9 @@ impl<T: IntLike> Interpreter<T> {
                 let StackValue::Int(local) = cur_frame.locals[*index as usize].unwrap() else {
                     panic!("Local must be an int, local: {}", index);
                 };
-                let result = T::bin_op(Op::Add, local, T::from_i32(*amount)).result.unwrap();
+                let result = T::bin_op(Op::Add, local, T::from_i32(*amount))
+                    .result
+                    .unwrap();
                 cur_frame.locals[*index as usize] = Some(StackValue::Int(result));
             }
             Instruction::Neg { ty } => {

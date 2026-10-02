@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use crate::abstractions::IntLike;
 
@@ -27,8 +27,7 @@ impl<T: IntLike> StackValue<T> {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum HeapValue<T: IntLike> {
+pub enum HeapValue<T: IntLike + Clone> {
     Int(T),
     Float(f32),
     Byte(u8),
@@ -36,12 +35,54 @@ pub enum HeapValue<T: IntLike> {
     Short(i16),
     Array {
         ty: SimpleType,
-        values: Vec<HeapValue<T>>,
+        values: T::Array<HeapValue<T>>,
     },
     Object {
         name: String,
         fields: HashMap<String, HeapValue<T>>,
     },
+}
+
+impl<T: IntLike + Clone> Debug for HeapValue<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Int(arg0) => f.debug_tuple("Int").field(arg0).finish(),
+            Self::Float(arg0) => f.debug_tuple("Float").field(arg0).finish(),
+            Self::Byte(arg0) => f.debug_tuple("Byte").field(arg0).finish(),
+            Self::Char(arg0) => f.debug_tuple("Char").field(arg0).finish(),
+            Self::Short(arg0) => f.debug_tuple("Short").field(arg0).finish(),
+            Self::Array { ty, values } => f
+                .debug_struct("Array")
+                .field("ty", ty)
+                .field("values", values)
+                .finish(),
+            Self::Object { name, fields } => f
+                .debug_struct("Object")
+                .field("name", name)
+                .field("fields", fields)
+                .finish(),
+        }
+    }
+}
+
+impl<T: IntLike + Clone> Clone for HeapValue<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Int(arg0) => Self::Int(arg0.clone()),
+            Self::Float(arg0) => Self::Float(arg0.clone()),
+            Self::Byte(arg0) => Self::Byte(arg0.clone()),
+            Self::Char(arg0) => Self::Char(arg0.clone()),
+            Self::Short(arg0) => Self::Short(arg0.clone()),
+            Self::Array { ty, values } => Self::Array {
+                ty: ty.clone(),
+                values: values.clone(),
+            },
+            Self::Object { name, fields } => Self::Object {
+                name: name.clone(),
+                fields: fields.clone(),
+            },
+        }
+    }
 }
 
 impl<T: IntLike> HeapValue<T> {
@@ -51,7 +92,7 @@ impl<T: IntLike> HeapValue<T> {
             HeapValue::Float(f) => StackValue::Float(*f),
             HeapValue::Byte(b) => todo!(),
             HeapValue::Short(s) => todo!(),
-            HeapValue::Char(c) => todo!(),
+            HeapValue::Char(c) => StackValue::Int(T::from_i32(*c as i32)),
             _ => panic!("Can't convert to StackValue"),
         }
     }

@@ -164,7 +164,7 @@ fn parse_string(input: &str, heap: &mut Heap<i32>) -> StackValue<i32> {
         .and_then(|s| s.strip_suffix('\''))
         .unwrap_or_else(|| panic!("invalid string literal `{input}`, expected `s'...'`"));
 
-    let chars: Vec<_> = content.encode_utf16().map(HeapValue::Char).collect();
+    let chars: Vec<HeapValue<i32>> = content.encode_utf16().map(HeapValue::Char).collect();
 
     let mut fields = HashMap::new();
     fields.insert(

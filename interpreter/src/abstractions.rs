@@ -6,12 +6,17 @@ pub struct BinOpResult<T: IntLike> {
     pub div_error: bool,
 }
 
-pub trait IntLike: ToString + Copy + Debug {
+pub trait IntLike: ToString + Clone + Copy + Debug {
+    type Array<S: Clone + Debug>: Clone + Debug;
     fn ifz(cond: Cond, value: Self) -> Vec<bool>;
     fn cmp(cond: Cond, lhs: Self, rhs: Self) -> Vec<bool>;
     fn bin_op(op: Op, lhs: Self, rhs: Self) -> BinOpResult<Self>;
     fn neg(self) -> Self;
     fn from_i32(value: i32) -> Self;
+
+    fn new_array<S: Clone + Debug>(len: Self, value: S) -> Self::Array<S>;
+    fn array_store<S: Clone + Debug>(value: S, idx: Self, array: &mut Self::Array<S>) -> Vec<bool>;
+    fn array_len<S: Clone + Debug>(array: &Self::Array<S>) -> Self;
 }
 
 pub trait IntAbstraction: IntLike {
@@ -20,6 +25,7 @@ pub trait IntAbstraction: IntLike {
 }
 
 impl IntLike for i32 {
+    type Array<S: Clone + Debug> = Vec<S>;
     fn ifz(cond: Cond, value: Self) -> Vec<bool> {
         vec![cond.cmp_with(value as i64, 0)]
     }
@@ -43,17 +49,33 @@ impl IntLike for i32 {
             },
         }
     }
-    
+
     fn neg(self) -> Self {
         self.wrapping_neg()
+    }
+
+    fn new_array<S: Clone + Debug>(len: Self, value: S) -> Self::Array<S> {
+        vec![value; len as usize]
+    }
+
+    fn array_store<S: Clone + Debug>(value: S, idx: Self, array: &mut Self::Array<S>) -> Vec<bool> {
+        if idx < 0 || idx as usize >= array.len() {
+            return vec![false];
+        }
+        array[idx as usize] = value;
+        return vec![true];
+    }
+
+    fn array_len<S: Clone + Debug>(array: &Self::Array<S>) -> Self {
+        array.len() as i32
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 enum Sign {
-    Neg,
-    Zero,
-    Pos,
+    Neg = 0,
+    Zero = 1,
+    Pos = 2,
 }
 
 impl Sign {
@@ -73,17 +95,19 @@ impl Sign {
             (Op::Sub, Sign::Zero, Sign::Neg) => Some(SignSet::from_sign(Sign::Pos)),
             (Op::Sub, Sign::Zero, Sign::Pos) => Some(SignSet::from_sign(Sign::Neg)),
             // Because over/underflow anything can happen :(
-            (Op::Add | Op::Sub, _, _) => Some(SignSet([true,true,true])),
-            (Op::Mul, Sign::Zero, _) | (Op::Mul, _, Sign::Zero) => Some(SignSet::from_sign(Sign::Zero)),
-            (Op::Mul, _, _) => Some(SignSet([true,true,true])),
+            (Op::Add | Op::Sub, _, _) => Some(SignSet([true, true, true])),
+            (Op::Mul, Sign::Zero, _) | (Op::Mul, _, Sign::Zero) => {
+                Some(SignSet::from_sign(Sign::Zero))
+            }
+            (Op::Mul, _, _) => Some(SignSet([true, true, true])),
             (Op::Div | Op::Rem, _, Sign::Zero) => None,
             (Op::Div | Op::Rem, Sign::Zero, _) => Some(SignSet::from_sign(Sign::Zero)),
-            (Op::Div, Sign::Neg, Sign::Pos) => Some(SignSet([true,true,false])),
-            (Op::Div, Sign::Pos, Sign::Neg) => Some(SignSet([true,true,false])),
-            (Op::Div, Sign::Pos, Sign::Pos) => Some(SignSet([false,true,true])),
-            (Op::Div, Sign::Neg, Sign::Neg) => Some(SignSet([true,true,true])),
-            (Op::Rem, Sign::Neg, _) => Some(SignSet([true,true,false])),
-            (Op::Rem, Sign::Pos, _) => Some(SignSet([false,true,true])),
+            (Op::Div, Sign::Neg, Sign::Pos) => Some(SignSet([true, true, false])),
+            (Op::Div, Sign::Pos, Sign::Neg) => Some(SignSet([true, true, false])),
+            (Op::Div, Sign::Pos, Sign::Pos) => Some(SignSet([false, true, true])),
+            (Op::Div, Sign::Neg, Sign::Neg) => Some(SignSet([true, true, true])),
+            (Op::Rem, Sign::Neg, _) => Some(SignSet([true, true, false])),
+            (Op::Rem, Sign::Pos, _) => Some(SignSet([false, true, true])),
         }
     }
 }
@@ -113,7 +137,13 @@ impl SignSet {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct SignSetArray {
+    len: SignSet,
+}
+
 impl IntLike for SignSet {
+    type Array<S: Clone + Debug> = SignSetArray;
     fn ifz(cond: Cond, value: Self) -> Vec<bool> {
         let mut res = vec![];
         for sign in value.signs() {
@@ -179,7 +209,7 @@ impl IntLike for SignSet {
 
     fn bin_op(op: Op, lhs: Self, rhs: Self) -> BinOpResult<Self> {
         dbg!(op, lhs, rhs);
-        let mut res = Self([true,true,true]);
+        let mut res = Self([true, true, true]);
         let mut div_error = false;
         for s1 in lhs.signs() {
             for s2 in rhs.signs() {
@@ -196,11 +226,30 @@ impl IntLike for SignSet {
         };
         BinOpResult { result, div_error }
     }
-    
+
     fn neg(self) -> Self {
         // Because in wrapping integer arithmetic -int::minvalue = -int::minvalue
         // From neg we can get neg or pos
         Self([self.0[2] | self.0[0], self.0[1], self.0[0]])
+    }
+
+    fn new_array<S: Clone + Debug>(len: Self, _value: S) -> Self::Array<S> {
+        if len.0[Sign::Neg as usize] {
+            panic!("Cannot create array of negative length!")
+        };
+        SignSetArray { len }
+    }
+
+    fn array_store<S: Clone + Debug>(
+        _value: S,
+        idx: Self,
+        array: &mut Self::Array<S>,
+    ) -> Vec<bool> {
+        Self::cmp(Cond::Lt, idx, array.len)
+    }
+
+    fn array_len<S: Clone + Debug>(array: &Self::Array<S>) -> Self {
+        array.len
     }
 }
 
