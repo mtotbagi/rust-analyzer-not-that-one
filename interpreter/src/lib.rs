@@ -17,4 +17,4 @@ pub use interpreter::*;
 mod util;
 pub use util::*;
 mod abstractions;
-pub use abstractions::SignSet;
+pub use abstractions::{IntLike, SignSet};

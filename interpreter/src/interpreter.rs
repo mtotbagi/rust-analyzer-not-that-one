@@ -385,14 +385,20 @@ impl<T: IntLike> Interpreter<T> {
 }
 
 impl<T: IntAbstraction> Interpreter<T> {
-    pub fn abstract_interpret(&self, method: &Method<T>, iter: u32) -> Vec<ExeResult> {
+    pub fn abstract_interpret(
+        &self,
+        method: &Method<T>,
+        iter: u32,
+    ) -> (Vec<Vec<State<T>>>, Vec<ExeResult>) {
         let input = abstract_input::<T>(&method.id.params);
         let pc = ProgramCounter {
             class: self.class.name.clone(),
             method: method.id.clone(),
             idx: 0,
         };
-        let mut states = vec![State::new(pc.clone(), input.0, input.1)];
+        let start_state = State::new(pc.clone(), input.0, input.1);
+        let mut states = vec![start_state.clone()];
+        let mut res_states = vec![states.clone()];
         let mut results = vec![];
         for _ in 0..iter {
             states = self
@@ -408,10 +414,11 @@ impl<T: IntAbstraction> Interpreter<T> {
                     }
                 })
                 .collect();
+            res_states.push(states.clone());
         }
         if !states.is_empty() {
             results.push(ExeResult::DidNotFinish);
         }
-        results
+        (res_states, results)
     }
 }
