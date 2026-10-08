@@ -1,32 +1,28 @@
-use crate::{
-    abstractions::IntLike,
-    instruction::Instruction,
-    java_types::{SimpleRef, SimpleType},
-};
+use crate::{HeapType, SimpleType, instruction::Instruction, java_types::Type};
 
 #[derive(Clone, Debug)]
-pub struct Class<T: IntLike> {
+pub struct Class {
     pub name: String,
-    pub methods: Box<[Method<T>]>,
+    pub methods: Box<[Method]>,
 }
 
-impl<T: IntLike> Class<T> {
-    pub fn get_method(&self, name: &str) -> Option<&Method<T>> {
+impl Class {
+    pub fn get_method(&self, name: &str) -> Option<&Method> {
         self.methods.iter().find(|m| m.id.name == name)
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct Method<T: IntLike> {
+pub struct Method {
     pub id: MethodId,
-    pub instructions: Box<[Instruction<T>]>,
+    pub instructions: Box<[Instruction]>,
 }
 
 #[derive(Clone, Debug)]
 pub struct MethodId {
     pub name: String,
-    pub params: Box<[SimpleType]>,
-    pub ret_ty: Option<SimpleType>,
+    pub params: Box<[Type]>,
+    pub ret_ty: Option<Type>,
 }
 
 impl MethodId {
@@ -44,18 +40,23 @@ impl MethodId {
         }
         res
     }
-    fn param_to_string(ty: &SimpleType) -> String {
+    fn param_to_string(ty: &Type) -> String {
         match ty {
+            Type::S(s) => MethodId::arrkind_to_string(*s),
+            Type::H(HeapType::Array { ty }) => "[".to_string() + &MethodId::arrkind_to_string(*ty),
+            Type::H(HeapType::Class { name: _ }) => todo!(),
+        }
+    }
+
+    fn arrkind_to_string(kind: SimpleType) -> String {
+        match kind {
             SimpleType::Int => "I".to_string(),
             SimpleType::Float => todo!(),
+            SimpleType::Ref => todo!(),
+            SimpleType::Boolean => "Z".to_string(),
             SimpleType::Byte => todo!(),
             SimpleType::Char => "C".to_string(),
             SimpleType::Short => todo!(),
-            SimpleType::Boolean => "Z".to_string(),
-            SimpleType::SimpleRef(r) => match r.as_ref() {
-                SimpleRef::Class { name: _ } => todo!(),
-                SimpleRef::Array { ty } => "[".to_string() + &MethodId::param_to_string(ty),
-            },
         }
     }
 }

@@ -244,13 +244,13 @@ impl<T: IntLike> Interpreter<T> {
 
                 // 0 as default
                 let default_value = match ty {
-                    SimpleType::Int => HeapValue::Int(T::from_i32(0)),
-                    SimpleType::Float => HeapValue::Float(0.0),
-                    SimpleType::Byte => HeapValue::Byte(0),
-                    SimpleType::Char => HeapValue::Char(0),
-                    SimpleType::Short => HeapValue::Short(0),
-                    SimpleType::Boolean => todo!(),
-                    SimpleType::SimpleRef(_) => todo!(),
+                    Type::Int => HeapValue::Int(T::from_i32(0)),
+                    Type::Float => HeapValue::Float(0.0),
+                    Type::Byte => HeapValue::Byte(0),
+                    Type::Char => HeapValue::Char(0),
+                    Type::Short => HeapValue::Short(0),
+                    Type::Boolean => todo!(),
+                    Type::SimpleRef(_) => todo!(),
                 };
                 let arr: <T as IntLike>::Array<HeapValue<T>> = T::new_array(len, default_value);
 

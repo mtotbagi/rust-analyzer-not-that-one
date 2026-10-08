@@ -6,7 +6,10 @@ pub struct BinOpResult<T: IntLike> {
     pub div_error: bool,
 }
 
-pub trait IntLike: ToString + Clone + Copy + Debug {
+pub trait Like: Clone + Copy + Debug {}
+impl<T> Like for T where T: Clone + Copy + Debug {}
+
+pub trait IntLike: Like + ToString {
     type Array<S: Clone + Debug>: Clone + Debug;
     fn ifz(cond: Cond, value: Self) -> Vec<bool>;
     fn cmp(cond: Cond, lhs: Self, rhs: Self) -> Vec<bool>;

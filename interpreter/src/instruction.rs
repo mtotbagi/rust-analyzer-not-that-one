@@ -1,11 +1,11 @@
 use crate::{
-    abstractions::IntLike,
+    ConcreteStackVal, HeapType, SimpleType,
     java_class::MethodId,
-    java_types::{SimpleRef, SimpleType, StackType, StackValue},
+    java_types::{StackType, Type},
 };
 
 #[derive(Clone, Debug)]
-pub enum Instruction<T: IntLike> {
+pub enum Instruction {
     Ifz {
         cond: Cond,
         target: u32,
@@ -19,7 +19,7 @@ pub enum Instruction<T: IntLike> {
         index: u32,
     },
     Push {
-        value: StackValue<T>,
+        value: ConcreteStackVal,
     },
     Return {
         ty: Option<StackType>,
@@ -34,7 +34,7 @@ pub enum Instruction<T: IntLike> {
     Invoke {
         access: Access,
         method_id: MethodId,
-        simple_ref: SimpleRef,
+        simple_ref: HeapType,
     },
     Throw,
     Binary {
@@ -54,7 +54,7 @@ pub enum Instruction<T: IntLike> {
     Placeholder,
     NewArray {
         dim: u32,
-        ty: SimpleType,
+        ty: Type,
     },
     ArrayStore {
         ty: SimpleType, // Technically JArrayType

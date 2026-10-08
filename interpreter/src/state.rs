@@ -1,11 +1,11 @@
 use crate::{
-    abstractions::IntLike,
+    abstractions::{IntLike, Like},
     java_class::MethodId,
     java_types::{HeapValue, StackType, StackValue},
 };
 
-pub enum Either<T: IntLike> {
-    State(State<T>),
+pub enum Either<I: IntLike, F: Like, R: Like> {
+    State(State<I, F, R>),
     Result(ExeResult),
 }
 
@@ -21,13 +21,17 @@ pub enum ExeResult {
 }
 
 #[derive(Clone, Debug)]
-pub struct State<T: IntLike> {
-    pub heap: Heap<T>,
-    pub frames: Vec<Frame<T>>,
+pub struct State<I: IntLike, F: Like, R: Like> {
+    pub heap: Heap<I, F, R>,
+    pub frames: Vec<Frame<I, F, R>>,
 }
 
-impl<T: IntLike> State<T> {
-    pub fn new(program_counter: ProgramCounter, input: Vec<StackValue<T>>, heap: Heap<T>) -> Self {
+impl<I: IntLike, F: Like, R: Like> State<I, F, R> {
+    pub fn new(
+        program_counter: ProgramCounter,
+        input: Vec<StackValue<I, F, R>>,
+        heap: Heap<I, F, R>,
+    ) -> Self {
         Self {
             heap: heap,
             frames: vec![Frame::new(program_counter, input)],
@@ -43,19 +47,19 @@ impl<T: IntLike> State<T> {
 }
 
 #[derive(Clone, Debug)]
-pub struct Heap<T: IntLike> {
-    pub heap: Vec<HeapValue<T>>,
+pub struct Heap<I: IntLike, F: Like, R: Like> {
+    pub heap: Vec<HeapValue<I, F, R>>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Frame<T: IntLike> {
-    pub stack: Vec<StackValue<T>>,
-    pub locals: Vec<Option<StackValue<T>>>,
+pub struct Frame<I: IntLike, F: Like, R: Like> {
+    pub stack: Vec<StackValue<I, F, R>>,
+    pub locals: Vec<Option<StackValue<I, F, R>>>,
     pub program_counter: ProgramCounter,
 }
 
-impl<T: IntLike> Frame<T> {
-    pub fn new(program_counter: ProgramCounter, locals: Vec<StackValue<T>>) -> Self {
+impl<I: IntLike, F: Like, R: Like> Frame<I, F, R> {
+    pub fn new(program_counter: ProgramCounter, locals: Vec<StackValue<I, F, R>>) -> Self {
         Self {
             stack: vec![],
             locals: locals.into_iter().map(|v| Some(v)).collect(),
@@ -86,7 +90,7 @@ impl<T: IntLike> Frame<T> {
         }
     }
 
-    pub(crate) fn push(&mut self, value: StackValue<T>) {
+    pub(crate) fn push(&mut self, value: StackValue<I, F, R>) {
         self.stack.push(value);
     }
 

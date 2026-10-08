@@ -1,10 +1,9 @@
 use serde_json::Value;
 
 use crate::{
-    Access, Cond, Instruction, Op, SimpleRef, StackType, StackValue,
-    abstractions::IntLike,
+    Access, ConcreteStackVal, Cond, HeapType, Instruction, Op, SimpleType, StackType,
     java_class::{Class, Method, MethodId},
-    java_types::SimpleType,
+    java_types::Type,
 };
 
 pub trait FromJson {
@@ -29,7 +28,7 @@ impl FromJson for i32 {
     }
 }
 
-impl<T: IntLike> FromJson for StackValue<T> {
+impl FromJson for ConcreteStackVal {
     fn from_json(json: &Value) -> Self {
         if json.is_null() {
             return Self::Ref(None);
@@ -39,7 +38,7 @@ impl<T: IntLike> FromJson for StackValue<T> {
             panic!("Invalid json {}", json)
         };
         match s.as_str() {
-            "int" | "integer" => Self::Int(T::from_i32(i32::from_json(&json["value"]))),
+            "int" | "integer" => Self::Int(i32::from_json(&json["value"])),
             "float" => todo!(),
             "ref" => todo!(),
             _ => panic!("Invalid json {}", json),
@@ -62,24 +61,31 @@ impl FromJson for StackType {
     }
 }
 
-impl FromJson for SimpleType {
+impl FromJson for Type {
     fn from_json(json: &Value) -> Self {
         if let Value::String(kind) = &json["kind"] {
             match kind.as_str() {
                 "array" => {
-                    return SimpleType::SimpleRef(Box::new(SimpleRef::Array {
+                    return Type::H(HeapType::Array {
                         ty: SimpleType::from_json(&json["type"]),
-                    }));
+                    });
                 }
                 _ => todo!(),
             }
         }
         dbg!(json);
         let s = if json.is_string() {
-            json.as_str().unwrap()
+            json
         } else {
-            json["base"].as_str().unwrap()
+            &json["base"]
         };
+        Self::S(SimpleType::from_json(s))
+    }
+}
+
+impl FromJson for SimpleType {
+    fn from_json(json: &Value) -> Self {
+        let s = json.as_str().unwrap();
         match s {
             "int" => Self::Int,
             "float" => Self::Float,
@@ -92,7 +98,7 @@ impl FromJson for SimpleType {
     }
 }
 
-impl FromJson for Option<SimpleType> {
+impl FromJson for Option<Type> {
     fn from_json(json: &Value) -> Self {
         if json.is_null() {
             return None;
@@ -100,32 +106,24 @@ impl FromJson for Option<SimpleType> {
         if let Value::String(kind) = &json["kind"] {
             match kind.as_str() {
                 "array" => {
-                    return Some(SimpleType::SimpleRef(Box::new(SimpleRef::Array {
+                    return Some(Type::H(HeapType::Array {
                         ty: SimpleType::from_json(&json["type"]),
-                    })));
+                    }));
                 }
                 _ => todo!(),
             }
         }
         eprintln!("return type json: {}", json);
         let s = if json.is_string() {
-            json.as_str().unwrap()
+            json
         } else if json["base"].is_string() {
-            json["base"].as_str().unwrap()
+            &json["base"]
         } else if json["type"]["base"].is_string() {
-            json["type"]["base"].as_str().unwrap()
+            &json["type"]["base"]
         } else {
             return None;
         };
-        match s {
-            "int" => Some(SimpleType::Int),
-            "float" => Some(SimpleType::Float),
-            "bool" | "boolean" => Some(SimpleType::Boolean),
-            "byte" => Some(SimpleType::Byte),
-            "char" => Some(SimpleType::Char),
-            "short" => Some(SimpleType::Short),
-            _ => panic!("Invalid json {}", json),
-        }
+        Some(Type::S(SimpleType::from_json(s)))
     }
 }
 
@@ -149,7 +147,7 @@ impl FromJson for Option<StackType> {
     }
 }
 
-impl<T: IntLike> FromJson for Instruction<T> {
+impl FromJson for Instruction {
     fn from_json(json: &Value) -> Self {
         let Value::String(s) = &json["opr"] else {
             panic!("Invalid json")
@@ -173,7 +171,7 @@ impl<T: IntLike> FromJson for Instruction<T> {
                 index: u32::from_json(&json["index"]),
             },
             "push" => Self::Push {
-                value: StackValue::<T>::from_json(&json["value"]),
+                value: ConcreteStackVal::from_json(&json["value"]),
             },
             "return" => Self::Return {
                 ty: Option::<StackType>::from_json(&json["type"]),
@@ -193,7 +191,7 @@ impl<T: IntLike> FromJson for Instruction<T> {
             "invoke" => Self::Invoke {
                 access: Access::from_json(&json["access"]),
                 method_id: MethodId::from_json(&json["method"]),
-                simple_ref: SimpleRef::from_json(&json["method"]["ref"]),
+                simple_ref: HeapType::from_json(&json["method"]["ref"]),
             },
             "throw" => Self::Throw,
             "binary" => Self::Binary {
@@ -205,7 +203,7 @@ impl<T: IntLike> FromJson for Instruction<T> {
             },
             "newarray" => Self::NewArray {
                 dim: u32::from_json(&json["dim"]),
-                ty: SimpleType::from_json(&json["type"]),
+                ty: Type::from_json(&json["type"]),
             },
             "array_store" => Self::ArrayStore {
                 ty: SimpleType::from_json(&json["type"]),
@@ -255,7 +253,7 @@ impl FromJson for Access {
     }
 }
 
-impl FromJson for SimpleRef {
+impl FromJson for HeapType {
     fn from_json(json: &Value) -> Self {
         let kind = json["kind"].as_str().expect("Invalid json");
         match kind {
@@ -297,18 +295,18 @@ impl FromJson for MethodId {
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|json| SimpleType::from_json(&json))
+                .map(|json| Type::from_json(&json))
                 .collect()
         } else {
             json["params"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|json| SimpleType::from_json(&json["type"]))
+                .map(|json| Type::from_json(&json["type"]))
                 .collect()
         };
 
-        let ret_ty = Option::<SimpleType>::from_json(&json["returns"]);
+        let ret_ty = Option::<Type>::from_json(&json["returns"]);
         // eprintln!("return type: {:?}", ret_ty);
         // if name == "multiError" {
         //     panic!()
@@ -321,7 +319,7 @@ impl FromJson for MethodId {
     }
 }
 
-impl<T: IntLike> FromJson for Method<T> {
+impl FromJson for Method {
     fn from_json(json: &Value) -> Self {
         let instructions: Box<_> = json["code"]["bytecode"]
             .as_array()
@@ -337,7 +335,7 @@ impl<T: IntLike> FromJson for Method<T> {
     }
 }
 
-impl<T: IntLike> FromJson for Class<T> {
+impl FromJson for Class {
     fn from_json(json: &Value) -> Self {
         let name = json["name"].as_str().unwrap().to_string();
         let methods: Box<_> = json["methods"]

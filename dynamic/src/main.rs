@@ -25,7 +25,7 @@ fn main() {
         .id
         .params
         .iter()
-        .any(|param| matches!(param, SimpleType::SimpleRef(_)))
+        .any(|param| matches!(param, Type::SimpleRef(_)))
     {
         if !method.id.params.is_empty() {
             println!("ok;skip");
@@ -94,15 +94,15 @@ fn main() {
     println!("{}", pred)
 }
 
-fn input_for_param(param: &SimpleType) -> Vec<StackValue<i32>> {
+fn input_for_param(param: &Type) -> Vec<StackValue<i32>> {
     match param {
-        SimpleType::Int => (-10..10).map(|i| StackValue::Int(i)).collect(),
-        SimpleType::Float => todo!(),
-        SimpleType::Byte => (0..256).map(|i| StackValue::Int(i)).collect(),
-        SimpleType::Char => (0..256).map(|i| StackValue::Int(i)).collect(),
-        SimpleType::Short => (-100..100).map(|i| StackValue::Int(i)).collect(),
-        SimpleType::Boolean => (0..=1).map(|i| StackValue::Int(i)).collect(),
-        SimpleType::SimpleRef(_) => todo!(),
+        Type::Int => (-10..10).map(|i| StackValue::Int(i)).collect(),
+        Type::Float => todo!(),
+        Type::Byte => (0..256).map(|i| StackValue::Int(i)).collect(),
+        Type::Char => (0..256).map(|i| StackValue::Int(i)).collect(),
+        Type::Short => (-100..100).map(|i| StackValue::Int(i)).collect(),
+        Type::Boolean => (0..=1).map(|i| StackValue::Int(i)).collect(),
+        Type::SimpleRef(_) => todo!(),
     }
 }
 

@@ -4,8 +4,7 @@ use regex::Regex;
 use serde_json::Value;
 
 use crate::{
-    Heap, SimpleType, StackValue,
-    abstractions::{IntAbstraction, IntLike},
+    Heap, SimpleType, StackValue, Type, abstractions::{IntAbstraction, IntLike, Like},
 };
 
 pub fn get_class_and_method(arg: &str) -> (String, String) {
@@ -25,23 +24,19 @@ pub fn read_json(classname: &str) -> Value {
     serde_json::from_reader(reader).unwrap()
 }
 
-pub fn empty_input<T: IntLike>() -> (Vec<StackValue<T>>, Heap<T>) {
+pub fn empty_input<I:IntLike, F:Like, R:Like>() -> (Vec<StackValue<I,F,R>>, Heap<I,F,R>) {
     (vec![], Heap { heap: vec![] })
 }
 
-pub fn abstract_input<T: IntAbstraction>(params: &[SimpleType]) -> (Vec<StackValue<T>>, Heap<T>) {
+pub fn abstract_input<I: IntAbstraction, F: Like, R: Like>(params: &[Type]) -> (Vec<StackValue<I,F,R>>, Heap<I,F,R>) {
     let heap = Heap { heap: vec![] };
     let mut locals = Vec::with_capacity(params.len());
 
     for p in params {
         match p {
-            SimpleType::Int => locals.push(StackValue::Int(T::new_int())),
-            SimpleType::Float => todo!(),
-            SimpleType::Byte => todo!(),
-            SimpleType::Char => todo!(),
-            SimpleType::Short => todo!(),
-            SimpleType::Boolean => locals.push(StackValue::Int(T::new_bool())),
-            SimpleType::SimpleRef(_) => todo!(),
+            Type::S(SimpleType::Int) => locals.push(StackValue::Int(I::new_int())),
+            Type::S(SimpleType::Boolean) => locals.push(StackValue::Int(I::new_bool())),
+            _ => todo!(),
         }
     }
 
