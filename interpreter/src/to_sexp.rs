@@ -1,30 +1,27 @@
 use crate::{
-    Either, ExeResult, Frame, Heap, ProgramCounter, StackValue, State, abstractions::IntLike,
+    Either, ExeResult, Frame, Heap, ProgramCounter, StackValue, State,
+    abstractions::{IntLike, Like},
 };
 
 pub trait ToSexp {
     fn to_sexp(&self) -> String;
 }
 
-impl<T: IntLike> ToSexp for StackValue<T> {
+impl<I, F, R> ToSexp for StackValue<I, F, R> {
     fn to_sexp(&self) -> String {
         let mut res = "(".to_string();
         match self {
-            StackValue::Int(i) => {
-                res += "int ";
-                res += &i.to_string();
+            StackValue::Int(_) => {
+                res += "int ()";
+                // res += &i.to_string();
             }
-            StackValue::Float(f) => {
-                res += "float ";
-                res += &f.to_string();
+            StackValue::Float(_) => {
+                res += "float ()";
+                // res += &f.to_string();
             }
-            StackValue::Ref(Some(r)) => {
-                res += "ref ";
-                res += &r.to_string();
-            }
-            StackValue::Ref(None) => {
-                res += "ref ";
-                res += "null";
+            StackValue::Ref(_) => {
+                res += "ref ()";
+                // res += &r.to_string();
             }
         }
         res += ")\n";
@@ -32,7 +29,7 @@ impl<T: IntLike> ToSexp for StackValue<T> {
     }
 }
 
-impl<T: IntLike> ToSexp for Option<StackValue<T>> {
+impl<I, F, R> ToSexp for Option<StackValue<I, F, R>> {
     fn to_sexp(&self) -> String {
         if let Some(stack_val) = self {
             stack_val.to_sexp()
@@ -55,7 +52,7 @@ impl ToSexp for ProgramCounter {
     }
 }
 
-impl<T: IntLike> ToSexp for Frame<T> {
+impl<I: IntLike, F: Like, R: Like> ToSexp for Frame<I, F, R> {
     fn to_sexp(&self) -> String {
         let mut res = "(frame\n".to_string();
         res += ":locals (\n";
@@ -75,13 +72,13 @@ impl<T: IntLike> ToSexp for Frame<T> {
     }
 }
 
-impl<T: IntLike> ToSexp for Heap<T> {
+impl<I: IntLike, F: Like, R: Like> ToSexp for Heap<I, F, R> {
     fn to_sexp(&self) -> String {
         "()\n".to_string()
     }
 }
 
-impl<T: IntLike> ToSexp for State<T> {
+impl<I: IntLike, F: Like, R: Like> ToSexp for State<I, F, R> {
     fn to_sexp(&self) -> String {
         let mut res = "(state\n".to_string();
 
@@ -116,7 +113,7 @@ impl ToSexp for ExeResult {
     }
 }
 
-impl<T: IntLike> ToSexp for Either<T> {
+impl<I: IntLike, F: Like, R: Like> ToSexp for Either<I, F, R> {
     fn to_sexp(&self) -> String {
         match self {
             Either::State(state) => state.to_sexp(),

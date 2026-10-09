@@ -94,14 +94,12 @@ fn parse_simple_value(ty: SimpleType, input: &str) -> ConcreteSimpleVal {
         SimpleType::Byte => SimpleValue::Byte(
             input
                 .parse::<i8>()
-                .unwrap_or_else(|_| panic!("invalid byte literal `{input}`"))
-                as i32,
+                .unwrap_or_else(|_| panic!("invalid byte literal `{input}`")) as i32,
         ),
         SimpleType::Short => SimpleValue::Short(
             input
                 .parse::<i16>()
-                .unwrap_or_else(|_| panic!("invalid short literal `{input}`"))
-                as i32,
+                .unwrap_or_else(|_| panic!("invalid short literal `{input}`")) as i32,
         ),
         SimpleType::Char => SimpleValue::Char(parse_char_literal(input) as i32),
         SimpleType::Boolean => {

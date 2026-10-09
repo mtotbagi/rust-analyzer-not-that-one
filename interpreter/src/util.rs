@@ -4,7 +4,8 @@ use regex::Regex;
 use serde_json::Value;
 
 use crate::{
-    Heap, SimpleType, StackValue, Type, abstractions::{IntAbstraction, IntLike, Like},
+    Heap, SimpleType, StackValue, Type,
+    abstractions::{IntAbstraction, IntLike, Like},
 };
 
 pub fn get_class_and_method(arg: &str) -> (String, String) {
@@ -24,11 +25,13 @@ pub fn read_json(classname: &str) -> Value {
     serde_json::from_reader(reader).unwrap()
 }
 
-pub fn empty_input<I:IntLike, F:Like, R:Like>() -> (Vec<StackValue<I,F,R>>, Heap<I,F,R>) {
+pub fn empty_input<I: IntLike, F: Like, R: Like>() -> (Vec<StackValue<I, F, R>>, Heap<I, F, R>) {
     (vec![], Heap { heap: vec![] })
 }
 
-pub fn abstract_input<I: IntAbstraction, F: Like, R: Like>(params: &[Type]) -> (Vec<StackValue<I,F,R>>, Heap<I,F,R>) {
+pub fn abstract_input<I: IntAbstraction, F: Like, R: Like>(
+    params: &[Type],
+) -> (Vec<StackValue<I, F, R>>, Heap<I, F, R>) {
     let heap = Heap { heap: vec![] };
     let mut locals = Vec::with_capacity(params.len());
 
