@@ -44,7 +44,7 @@ impl MethodId {
         match ty {
             Type::S(s) => MethodId::arrkind_to_string(*s),
             Type::H(HeapType::Array { ty }) => "[".to_string() + &MethodId::arrkind_to_string(*ty),
-            Type::H(HeapType::Class { name: _ }) => todo!(),
+            Type::H(HeapType::Class { name }) => "L".to_string() + name + ";",
         }
     }
 

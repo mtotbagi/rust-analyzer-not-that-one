@@ -1,8 +1,4 @@
-use crate::{
-    ConcreteStackVal, HeapType, SimpleType,
-    java_class::MethodId,
-    java_types::{StackType, Type},
-};
+use crate::{ConcreteVal, HeapType, SimpleType, java_class::MethodId, java_types::StackType};
 
 #[derive(Clone, Debug)]
 pub enum Instruction {
@@ -19,7 +15,7 @@ pub enum Instruction {
         index: u32,
     },
     Push {
-        value: ConcreteStackVal,
+        value: ConcreteVal,
     },
     Return {
         ty: Option<StackType>,

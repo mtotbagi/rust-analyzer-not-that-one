@@ -3,8 +3,9 @@ use serde_json::Value;
 use crate::{
     Access, ConcreteStackVal, Cond, HeapType, Instruction, Op, SimpleType, StackType,
     java_class::{Class, Method, MethodId},
-    java_types::Type,
+    java_types::{ConcreteSimpleVal, ConcreteVal, HeapValue, SimpleValue, Type, Value as JValue},
 };
+use std::collections::HashMap;
 
 pub trait FromJson {
     fn from_json(json: &Value) -> Self;
@@ -71,7 +72,12 @@ impl FromJson for Type {
                         ty: SimpleType::from_json(&json["type"]),
                     });
                 }
-                _ => todo!(),
+                "class" => {
+                    return Type::H(HeapType::Class {
+                        name: json["name"].as_str().unwrap().to_string(),
+                    });
+                }
+                _ => panic!("invalid json {json}"),
             }
         }
         Self::S(SimpleType::from_json(json))
@@ -171,7 +177,7 @@ impl FromJson for Instruction {
                 index: u32::from_json(&json["index"]),
             },
             "push" => Self::Push {
-                value: ConcreteStackVal::from_json(&json["value"]),
+                value: ConcreteVal::from_json(&json["value"]),
             },
             "return" => Self::Return {
                 ty: Option::<StackType>::from_json(&json["type"]),
@@ -247,7 +253,7 @@ impl FromJson for Access {
             "static" => Self::Static,
             "dynamic" => todo!(),
             "interface" => todo!(),
-            "virtual" => todo!(),
+            "virtual" => Self::Virtual,
             _ => panic!("Invalid json"),
         }
     }
@@ -348,4 +354,49 @@ impl FromJson for Class {
             .collect();
         Class { name, methods }
     }
+}
+
+impl FromJson for ConcreteVal {
+    fn from_json(json: &Value) -> Self {
+        if json.is_null() {
+            return JValue::S(SimpleValue::Ref(None));
+        }
+
+        let Value::String(s) = &json["type"] else {
+            panic!("Invalid json {}", json)
+        };
+        match s.as_str() {
+            "int" | "integer" => JValue::S(SimpleValue::Int(i32::from_json(&json["value"]))),
+            "float" => JValue::S(SimpleValue::Float(
+                json["value"].as_f64().expect("Float expected") as f32,
+            )),
+            "string" => {
+                let content = json["value"].as_str().expect("String expected");
+                string_object(content)
+            }
+            "ref" => todo!(),
+            _ => panic!("Invalid json {}", json),
+        }
+    }
+}
+
+pub fn string_object(content: &str) -> ConcreteVal {
+    let chars: Vec<ConcreteSimpleVal> = content
+        .encode_utf16()
+        .map(|c| SimpleValue::Char(c as i32))
+        .collect();
+
+    let mut fields: HashMap<String, ConcreteVal> = HashMap::new();
+    fields.insert(
+        "value".to_string(),
+        JValue::H(HeapValue::Array {
+            ty: SimpleType::Char,
+            values: chars,
+        }),
+    );
+
+    JValue::H(HeapValue::Object {
+        name: "java/lang/String".to_string(),
+        fields,
+    })
 }

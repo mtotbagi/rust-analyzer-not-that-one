@@ -32,7 +32,7 @@ pub enum Type {
     H(HeapType),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StackValue<I, F, R> {
     Int(I),
     Float(F),
@@ -41,7 +41,7 @@ pub enum StackValue<I, F, R> {
 
 pub type ConcreteStackVal = StackValue<i32, f32, Option<u32>>;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SimpleValue<I, F, R> {
     Int(I),
     Float(F),
@@ -109,6 +109,18 @@ impl<I: IntLike, R: Like, F: Like> SimpleValue<I, R, F> {
 
     pub fn to_value(self) -> Value<I, R, F> {
         Value::S(self)
+    }
+
+    pub fn get_type(&self) -> SimpleType {
+        match self {
+            SimpleValue::Int(_) => SimpleType::Int,
+            SimpleValue::Float(_) => SimpleType::Float,
+            SimpleValue::Ref(_) => SimpleType::Ref,
+            SimpleValue::Boolean(_) => SimpleType::Boolean,
+            SimpleValue::Byte(_) => SimpleType::Byte,
+            SimpleValue::Char(_) => SimpleType::Char,
+            SimpleValue::Short(_) => SimpleType::Short,
+        }
     }
 }
 

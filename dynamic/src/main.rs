@@ -40,7 +40,9 @@ fn main() {
         .iter()
         .map(|m| {
             m.instructions.iter().filter_map(|inst| match inst {
-                Instruction::Push { value } => Some(value.clone()),
+                Instruction::Push {
+                    value: interpreter::Value::S(v),
+                } => Some(v.to_stack_value()),
                 _ => None,
             })
         })

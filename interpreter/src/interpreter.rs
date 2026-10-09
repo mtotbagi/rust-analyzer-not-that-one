@@ -53,7 +53,14 @@ impl Interpreter {
         dbg!(&bytecode[cur_frame.pc()]);
         match &bytecode[cur_frame.pc()] {
             Instruction::Load { ty, index } => cur_frame.load(*ty, *index),
-            Instruction::Push { value } => cur_frame.push(*value),
+            Instruction::Push { value } => match value {
+                Value::S(simple_value) => cur_frame.push(simple_value.to_stack_value()),
+                Value::H(heap_value) => {
+                    let len = state.heap.heap.len();
+                    state.heap.heap.push(heap_value.clone());
+                    cur_frame.push(ConcreteStackVal::Ref(Some(len as u32)));
+                }
+            },
             Instruction::Dup { words } => cur_frame.dup(*words),
             Instruction::Throw => return Either::Right(AssertErr),
             Instruction::Ifz { cond, target } => {
@@ -116,6 +123,38 @@ impl Interpreter {
                 };
                 if self.class.name != *classname {
                     if classname == "java/lang/AssertionError" && method_id.name == "<init>" {
+                    } else if classname == "java/lang/String" && method_id.name == "equals" {
+                        let Some(ConcreteStackVal::Ref(Some(r1))) = cur_frame.stack.pop() else {
+                            panic!("invalid state!")
+                        };
+                        let Some(ConcreteStackVal::Ref(Some(r2))) = cur_frame.stack.pop() else {
+                            panic!("invalid state!")
+                        };
+
+                        let HeapValue::Object {
+                            name: n1,
+                            fields: f1,
+                        } = &state.heap.heap[r1 as usize]
+                        else {
+                            panic!("invalid state!")
+                        };
+                        let HeapValue::Object {
+                            name: n2,
+                            fields: f2,
+                        } = &state.heap.heap[r2 as usize]
+                        else {
+                            panic!("invalid state!")
+                        };
+                        assert!(n1 == "java/lang/String", "{n1}");
+                        assert!(n2 == "java/lang/String", "{n2}");
+                        let Value::H(HeapValue::Array { ty: _, values: v1 }) = &f1["value"] else {
+                            panic!("Invalid state!")
+                        };
+                        let Value::H(HeapValue::Array { ty: _, values: v2 }) = &f2["value"] else {
+                            panic!("Invalid state!")
+                        };
+                        let res = *v1 == *v2;
+                        cur_frame.push(ConcreteStackVal::Int(res as i32));
                     } else {
                         todo!(
                             "Handling {} method on class {} not yet implemented",
