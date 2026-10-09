@@ -25,17 +25,15 @@ fn main() {
         .id
         .params
         .iter()
-        .any(|param| matches!(param, Type::SimpleRef(_)))
+        .any(|param| matches!(param, Type::H(_)))
     {
-        if !method.id.params.is_empty() {
-            println!("ok;skip");
-            println!("divide by zero;skip");
-            println!("assertion error;skip");
-            println!("out of bounds;skip");
-            println!("null pointer;skip");
-            println!("*;skip");
-            return;
-        }
+        println!("ok;skip");
+        println!("divide by zero;skip");
+        println!("assertion error;skip");
+        println!("out of bounds;skip");
+        println!("null pointer;skip");
+        println!("*;skip");
+        return;
     }
     let consts: Vec<_> = class
         .methods
@@ -94,15 +92,16 @@ fn main() {
     println!("{}", pred)
 }
 
-fn input_for_param(param: &Type) -> Vec<StackValue<i32>> {
+fn input_for_param(param: &Type) -> Vec<ConcreteStackVal> {
     match param {
-        Type::Int => (-10..10).map(|i| StackValue::Int(i)).collect(),
-        Type::Float => todo!(),
-        Type::Byte => (0..256).map(|i| StackValue::Int(i)).collect(),
-        Type::Char => (0..256).map(|i| StackValue::Int(i)).collect(),
-        Type::Short => (-100..100).map(|i| StackValue::Int(i)).collect(),
-        Type::Boolean => (0..=1).map(|i| StackValue::Int(i)).collect(),
-        Type::SimpleRef(_) => todo!(),
+        Type::S(SimpleType::Int) => (-10..10).map(|i| ConcreteStackVal::Int(i)).collect(),
+        Type::S(SimpleType::Float) => todo!(),
+        Type::S(SimpleType::Byte) => (0..256).map(|i| ConcreteStackVal::Int(i)).collect(),
+        Type::S(SimpleType::Char) => (0..256).map(|i| ConcreteStackVal::Int(i)).collect(),
+        Type::S(SimpleType::Short) => (-100..100).map(|i| ConcreteStackVal::Int(i)).collect(),
+        Type::S(SimpleType::Boolean) => (0..=1).map(|i| ConcreteStackVal::Int(i)).collect(),
+        Type::S(SimpleType::Ref) => panic!("Invalid param"),
+        Type::H(_) => todo!(),
     }
 }
 

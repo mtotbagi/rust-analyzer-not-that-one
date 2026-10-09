@@ -113,11 +113,11 @@ impl ToSexp for ExeResult {
     }
 }
 
-impl<I: IntLike, F: Like, R: Like> ToSexp for Either<I, F, R> {
+impl<A: ToSexp, B: ToSexp> ToSexp for Either<A, B> {
     fn to_sexp(&self) -> String {
         match self {
-            Either::State(state) => state.to_sexp(),
-            Either::Result(exe_result) => exe_result.to_sexp(),
+            Either::Left(l) => l.to_sexp(),
+            Either::Right(r) => r.to_sexp(),
         }
     }
 }

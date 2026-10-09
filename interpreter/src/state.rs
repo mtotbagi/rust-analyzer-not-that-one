@@ -4,9 +4,9 @@ use crate::{
     java_types::{HeapValue, StackType, StackValue},
 };
 
-pub enum Either<I: IntLike, F: Like, R: Like> {
-    State(State<I, F, R>),
-    Result(ExeResult),
+pub enum Either<A, B> {
+    Left(A),
+    Right(B),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -25,6 +25,8 @@ pub struct State<I: IntLike, F: Like, R: Like> {
     pub heap: Heap<I, F, R>,
     pub frames: Vec<Frame<I, F, R>>,
 }
+
+pub type ConcreteState = State<i32, f32, Option<u32>>;
 
 impl<I: IntLike, F: Like, R: Like> State<I, F, R> {
     pub fn new(
@@ -50,6 +52,8 @@ impl<I: IntLike, F: Like, R: Like> State<I, F, R> {
 pub struct Heap<I: IntLike, F: Like, R: Like> {
     pub heap: Vec<HeapValue<I, F, R>>,
 }
+
+pub type ConcreteHeap = Heap<i32, f32, Option<u32>>;
 
 #[derive(Clone, Debug)]
 pub struct Frame<I: IntLike, F: Like, R: Like> {

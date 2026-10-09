@@ -63,6 +63,7 @@ impl FromJson for StackType {
 
 impl FromJson for Type {
     fn from_json(json: &Value) -> Self {
+        dbg!(json);
         if let Value::String(kind) = &json["kind"] {
             match kind.as_str() {
                 "array" => {
@@ -73,19 +74,18 @@ impl FromJson for Type {
                 _ => todo!(),
             }
         }
-        dbg!(json);
-        let s = if json.is_string() {
-            json
-        } else {
-            &json["base"]
-        };
-        Self::S(SimpleType::from_json(s))
+        Self::S(SimpleType::from_json(json))
     }
 }
 
 impl FromJson for SimpleType {
     fn from_json(json: &Value) -> Self {
-        let s = json.as_str().unwrap();
+        dbg!(json);
+        let s = if json.is_string() {
+            json.as_str().unwrap()
+        } else {
+            json["base"].as_str().unwrap()
+        };
         match s {
             "int" => Self::Int,
             "float" => Self::Float,
@@ -203,7 +203,7 @@ impl FromJson for Instruction {
             },
             "newarray" => Self::NewArray {
                 dim: u32::from_json(&json["dim"]),
-                ty: Type::from_json(&json["type"]),
+                ty: SimpleType::from_json(&json["type"]),
             },
             "array_store" => Self::ArrayStore {
                 ty: SimpleType::from_json(&json["type"]),
@@ -289,7 +289,7 @@ impl FromJson for MethodId {
     fn from_json(json: &Value) -> Self {
         let name = json["name"].as_str().unwrap().to_string();
         eprintln!("parsing fn: {name}");
-
+        dbg!(json);
         let params: Box<_> = if json["params"].is_null() {
             json["args"]
                 .as_array()

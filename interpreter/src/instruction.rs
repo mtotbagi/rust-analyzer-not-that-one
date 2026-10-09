@@ -54,7 +54,7 @@ pub enum Instruction {
     Placeholder,
     NewArray {
         dim: u32,
-        ty: Type,
+        ty: SimpleType,
     },
     ArrayStore {
         ty: SimpleType, // Technically JArrayType

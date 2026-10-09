@@ -57,7 +57,7 @@ pub type ConcreteSimpleVal = SimpleValue<i32, f32, Option<u32>>;
 #[derive(Clone, Debug)]
 pub enum HeapValue<I: IntLike, R: Like, F: Like> {
     Array {
-        ty: Type,
+        ty: SimpleType,
         values: I::Array<SimpleValue<I, R, F>>,
     },
     Object {
@@ -109,5 +109,19 @@ impl<I: IntLike, R: Like, F: Like> SimpleValue<I, R, F> {
 
     pub fn to_value(self) -> Value<I, R, F> {
         Value::S(self)
+    }
+}
+
+impl SimpleType {
+    pub fn default_val<I: IntLike, F, R>(&self) -> SimpleValue<I, F, R> {
+        match self {
+            SimpleType::Int => SimpleValue::Int(I::from_i32(0)),
+            SimpleType::Float => todo!(),
+            SimpleType::Ref => todo!(),
+            SimpleType::Boolean => SimpleValue::Boolean(I::from_i32(0)),
+            SimpleType::Byte => SimpleValue::Byte(I::from_i32(0)),
+            SimpleType::Char => SimpleValue::Char(I::from_i32(0)),
+            SimpleType::Short => SimpleValue::Short(I::from_i32(0)),
+        }
     }
 }

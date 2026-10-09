@@ -11,7 +11,7 @@ fn main() {
     }
     let (classname, methodname) = get_class_and_method(&args[1]);
     let json: Value = read_json(&classname);
-    let class: Class<SignSet> = Class::from_json(&json);
+    let class: Class = Class::from_json(&json);
 
     let method = class
         .get_method(&methodname)
@@ -24,7 +24,7 @@ fn main() {
         .id
         .params
         .iter()
-        .any(|param| matches!(param, SimpleType::SimpleRef(_)))
+        .any(|param| matches!(param, Type::H(_)))
     {
         if !method.id.params.is_empty() {
             println!("ok;skip");
@@ -47,23 +47,23 @@ fn main() {
     };
 
     let interpreter = Interpreter::new(class);
-    let results = interpreter.abstract_interpret(&method, 100);
-    for res in results {
-        match res {
-            ExeResult::Ok => pred.ok = "yes".to_string(),
-            ExeResult::AssertErr => pred.assert_err = "yes".to_string(),
-            ExeResult::OutOfBounds => pred.out_of_bounds = "yes".to_string(),
-            ExeResult::NullPointer => pred.null_pointer = "yes".to_string(),
-            ExeResult::Div0 => pred.div0 = "yes".to_string(),
-            ExeResult::NoHalt => pred.no_halt = "yes".to_string(),
-            ExeResult::DidNotFinish => {
-                if pred.no_halt != "yes" {
-                    pred.no_halt = "probably".to_string()
-                }
-            }
-        }
-    }
-    println!("{}", pred)
+    // let results = interpreter.abstract_interpret(&method, 100);
+    // for res in results {
+    //     match res {
+    //         ExeResult::Ok => pred.ok = "yes".to_string(),
+    //         ExeResult::AssertErr => pred.assert_err = "yes".to_string(),
+    //         ExeResult::OutOfBounds => pred.out_of_bounds = "yes".to_string(),
+    //         ExeResult::NullPointer => pred.null_pointer = "yes".to_string(),
+    //         ExeResult::Div0 => pred.div0 = "yes".to_string(),
+    //         ExeResult::NoHalt => pred.no_halt = "yes".to_string(),
+    //         ExeResult::DidNotFinish => {
+    //             if pred.no_halt != "yes" {
+    //                 pred.no_halt = "probably".to_string()
+    //             }
+    //         }
+    //     }
+    // }
+    // println!("{}", pred)
 }
 
 struct Prediction {

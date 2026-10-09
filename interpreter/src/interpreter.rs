@@ -1,56 +1,44 @@
 use std::collections::HashMap;
 
 use crate::{
-    ExeResult::{NullPointer, OutOfBounds},
-    abstractions::{IntAbstraction, IntLike},
-    state::ExeResult::{AssertErr, Div0, Ok},
+    state::ExeResult::{AssertErr, Div0, NullPointer, Ok, OutOfBounds},
     *,
 };
-pub struct Interpreter<T: IntLike> {
-    class: Class<T>,
+pub struct Interpreter {
+    class: Class,
 }
+impl Interpreter {
+    pub fn new(class: Class) -> Self {
+        Interpreter { class }
+    }
 
-impl Interpreter<i32> {
     pub fn interpret(
         &self,
-        method: &Method<i32>,
-        input: (Vec<StackValue<i32>>, Heap<i32>),
+        method: &Method,
+        input: (Vec<ConcreteStackVal>, ConcreteHeap),
         iter: u32,
-    ) -> (Vec<State<i32>>, ExeResult) {
+    ) -> (Vec<ConcreteState>, ExeResult) {
         let pc = ProgramCounter {
             class: self.class.name.clone(),
             method: method.id.clone(),
             idx: 0,
         };
-        let mut state = State::new(pc.clone(), input.0, input.1);
+        let mut state = ConcreteState::new(pc.clone(), input.0, input.1);
         let mut states = vec![state.clone()];
         for _ in 0..iter {
-            let mut res = self.step(state);
-            state = match res.pop().unwrap() {
-                Either::State(state) => {
+            let res = self.step(state);
+            state = match res {
+                Either::Left(state) => {
                     states.push(state.clone());
                     state
                 }
-                Either::Result(exe_result) => return (states, exe_result),
+                Either::Right(exe_result) => return (states, exe_result),
             }
         }
         (states, ExeResult::DidNotFinish)
     }
-}
 
-impl<T: IntLike> Interpreter<T> {
-    pub fn new(class: Class<T>) -> Self {
-        Interpreter { class }
-    }
-
-    fn multistep(&self, states: Vec<State<T>>) -> Vec<Either<T>> {
-        states
-            .into_iter()
-            .flat_map(|state| self.step(state))
-            .collect()
-    }
-
-    fn step(&self, mut state: State<T>) -> Vec<Either<T>> {
+    fn step(&self, mut state: ConcreteState) -> Either<ConcreteState, ExeResult> {
         let Some(mut cur_frame) = state.frames.pop() else {
             panic!("Empty state!")
         };
@@ -67,30 +55,20 @@ impl<T: IntLike> Interpreter<T> {
             Instruction::Load { ty, index } => cur_frame.load(*ty, *index),
             Instruction::Push { value } => cur_frame.push(*value),
             Instruction::Dup { words } => cur_frame.dup(*words),
-            Instruction::Throw => return vec![Either::Result(AssertErr)],
+            Instruction::Throw => return Either::Right(AssertErr),
             Instruction::Ifz { cond, target } => {
-                let poss_outcomes = match cur_frame.stack.pop() {
-                    Some(StackValue::Int(i)) => T::ifz(*cond, i),
-                    Some(StackValue::Ref(Some(i))) => vec![cond.cmp_with(i as i64, 0)],
-                    Some(StackValue::Ref(None)) => vec![cond.cmp_with(0, 0)],
+                let i = match cur_frame.stack.pop() {
+                    Some(ConcreteStackVal::Int(i)) => i as i64,
+                    Some(ConcreteStackVal::Ref(Some(i))) => i as i64,
+                    Some(ConcreteStackVal::Ref(None)) => 0,
                     Some(_) => panic!(),
                     None => panic!(),
                 };
-                let mut states = vec![];
-                if poss_outcomes.contains(&true) {
-                    let mut frame_copy = cur_frame.clone();
-
-                    frame_copy.set_pc(*target);
-                    let mut state_copy = state.clone();
-                    state_copy.frames.push(frame_copy);
-                    states.push(Either::State(state_copy));
-                }
-                if poss_outcomes.contains(&false) {
-                    cur_frame.increment_pc();
+                if cond.cmp_with(i, 0) {
+                    cur_frame.set_pc(*target);
                     state.frames.push(cur_frame);
-                    states.push(Either::State(state));
+                    return Either::Left(state);
                 }
-                return states;
             }
             Instruction::Store { ty, index } => cur_frame.store(*ty, *index),
             Instruction::Return { ty } => {
@@ -105,20 +83,20 @@ impl<T: IntLike> Interpreter<T> {
                         assert!(*ty == value.get_type());
                         old_frame.push(value);
                     }
-                    return vec![Either::State(state)];
+                    return Either::Left(state);
                 } else {
-                    return vec![Either::Result(Ok)];
+                    return Either::Right(Ok);
                 }
             }
             Instruction::Get => {
                 // TODO handle other cases than assertionsDisabled = false
-                cur_frame.stack.push(StackValue::Int(T::from_i32(0)));
+                cur_frame.stack.push(ConcreteStackVal::Int(0));
                 dbg!(&cur_frame.stack);
             }
             Instruction::New { class } => {
                 cur_frame
                     .stack
-                    .push(StackValue::Ref(Some(state.heap.heap.len() as u32)));
+                    .push(ConcreteStackVal::Ref(Some(state.heap.heap.len() as u32)));
                 state.heap.heap.push(HeapValue::Object {
                     name: class.clone(),
                     fields: HashMap::new(),
@@ -133,8 +111,8 @@ impl<T: IntLike> Interpreter<T> {
                 // If this is not a method of the class, it's one of the special cases
                 // Or it's unhandled and we panic
                 let classname = match simple_ref {
-                    SimpleRef::Class { name } => name,
-                    SimpleRef::Array { ty: _ } => todo!(),
+                    HeapType::Class { name } => name,
+                    HeapType::Array { ty: _ } => todo!(),
                 };
                 if self.class.name != *classname {
                     if classname == "java/lang/AssertionError" && method_id.name == "<init>" {
@@ -161,70 +139,52 @@ impl<T: IntLike> Interpreter<T> {
                     cur_frame.increment_pc();
                     state.frames.push(cur_frame);
                     state.frames.push(new_frame);
-                    return vec![Either::State(state)];
+                    return Either::Left(state);
                 }
             }
             Instruction::Binary { op, ty } => match ty {
                 StackType::Int => {
-                    let Some(StackValue::Int(rhs)) = cur_frame.stack.pop() else {
+                    let Some(ConcreteStackVal::Int(rhs)) = cur_frame.stack.pop() else {
                         panic!()
                     };
-                    let Some(StackValue::Int(lhs)) = cur_frame.stack.pop() else {
+                    let Some(ConcreteStackVal::Int(lhs)) = cur_frame.stack.pop() else {
                         panic!()
                     };
                     dbg!(lhs, rhs);
-                    let op_res = T::bin_op(*op, lhs, rhs);
-                    let mut states = vec![];
-                    if op_res.div_error {
-                        states.push(Either::Result(Div0));
+                    match op.op_int(lhs, rhs) {
+                        Some(result) => cur_frame.stack.push(ConcreteStackVal::Int(result)),
+                        None => return Either::Right(Div0),
                     }
-                    if let Some(value) = op_res.result {
-                        cur_frame.stack.push(StackValue::Int(value));
-                        cur_frame.increment_pc();
-                        state.frames.push(cur_frame);
-                        states.push(Either::State(state));
-                    }
-                    return states;
                 }
                 StackType::Float => todo!(),
                 StackType::Ref => panic!("Cannot use ref for arithmetic operations!"),
             },
             Instruction::If { cond, target } => {
                 let rhs = match cur_frame.stack.pop() {
-                    Some(StackValue::Int(i)) => i,
-                    Some(StackValue::Ref(Some(_))) => todo!(),
-                    Some(StackValue::Ref(None)) => todo!(),
+                    Some(ConcreteStackVal::Int(i)) => i as i64,
+                    Some(ConcreteStackVal::Ref(Some(i))) => i as i64,
+                    Some(ConcreteStackVal::Ref(None)) => -1,
                     Some(_) => panic!(),
                     None => panic!(),
                 };
                 let lhs = match cur_frame.stack.pop() {
-                    Some(StackValue::Int(i)) => i,
-                    Some(StackValue::Ref(Some(_))) => todo!(),
-                    Some(StackValue::Ref(None)) => todo!(),
+                    Some(ConcreteStackVal::Int(i)) => i as i64,
+                    Some(ConcreteStackVal::Ref(Some(i))) => i as i64,
+                    Some(ConcreteStackVal::Ref(None)) => -1,
                     Some(_) => panic!(),
                     None => panic!(),
                 };
-                let poss_outcomes = T::cmp(*cond, lhs, rhs);
-                let mut states = vec![];
-                if poss_outcomes.contains(&true) {
-                    let mut frame_copy = cur_frame.clone();
 
-                    frame_copy.set_pc(*target);
-                    let mut state_copy = state.clone();
-                    state_copy.frames.push(frame_copy);
-                    states.push(Either::State(state_copy));
-                }
-                if poss_outcomes.contains(&false) {
-                    cur_frame.increment_pc();
+                if cond.cmp_with(lhs, rhs) {
+                    cur_frame.set_pc(*target);
                     state.frames.push(cur_frame);
-                    states.push(Either::State(state));
+                    return Either::Left(state);
                 }
-                return states;
             }
             Instruction::Goto { target } => {
                 cur_frame.set_pc(*target);
                 state.frames.push(cur_frame);
-                return vec![Either::State(state)];
+                return Either::Left(state);
             }
             Instruction::Placeholder => todo!(),
             Instruction::NewArray { dim, ty } => {
@@ -236,38 +196,29 @@ impl<T: IntLike> Interpreter<T> {
                     todo!("Only one dimensional arrays are supported currently!");
                 }
 
-                let len = if let StackValue::Int(x) = cur_frame.stack.pop().unwrap() {
-                    x
+                let len = if let ConcreteStackVal::Int(x) = cur_frame.stack.pop().unwrap() {
+                    x as usize
                 } else {
                     panic!("Invalid array length!")
                 };
 
                 // 0 as default
-                let default_value = match ty {
-                    Type::Int => HeapValue::Int(T::from_i32(0)),
-                    Type::Float => HeapValue::Float(0.0),
-                    Type::Byte => HeapValue::Byte(0),
-                    Type::Char => HeapValue::Char(0),
-                    Type::Short => HeapValue::Short(0),
-                    Type::Boolean => todo!(),
-                    Type::SimpleRef(_) => todo!(),
-                };
-                let arr: <T as IntLike>::Array<HeapValue<T>> = T::new_array(len, default_value);
+                let arr = vec![ty.default_val(); len];
 
                 cur_frame
                     .stack
-                    .push(StackValue::Ref(Some(state.heap.heap.len() as u32)));
+                    .push(ConcreteStackVal::Ref(Some(state.heap.heap.len() as u32)));
                 state.heap.heap.push(HeapValue::Array {
                     ty: ty.clone(),
                     values: arr,
                 });
             }
-            Instruction::ArrayStore { ty } => {
+            Instruction::ArrayStore { ty: _ } => {
                 let val = cur_frame
                     .stack
                     .pop()
                     .expect("[ArraySotre]: value not on stack");
-                let StackValue::Int(idx) = cur_frame
+                let ConcreteStackVal::Int(idx) = cur_frame
                     .stack
                     .pop()
                     .expect("[ArraySotre]: index not on stack")
@@ -275,7 +226,7 @@ impl<T: IntLike> Interpreter<T> {
                     panic!("Expected an Int");
                 };
 
-                let StackValue::Ref(arr_ref) = cur_frame
+                let ConcreteStackVal::Ref(arr_ref) = cur_frame
                     .stack
                     .pop()
                     .expect("[ArraySotre]: arrayref not on stack")
@@ -284,28 +235,22 @@ impl<T: IntLike> Interpreter<T> {
                 };
 
                 let Some(arr) = arr_ref else {
-                    return vec![Either::Result(NullPointer)];
+                    return Either::Right(NullPointer);
                 };
 
-                if let HeapValue::Array { ty, values } = &mut state.heap.heap[arr as usize] {
+                if let HeapValue::Array { ty: _, values } = &mut state.heap.heap[arr as usize] {
                     // TODO: check type
-                    let res = T::array_store(val.to_heap_value(), idx, values);
-                    let mut states = vec![];
-                    if res.contains(&true) {
-                        cur_frame.increment_pc();
-                        state.frames.push(cur_frame);
-                        states.push(Either::State(state));
+                    if idx as usize >= values.len() {
+                        return Either::Right(OutOfBounds);
                     }
-                    if res.contains(&false) {
-                        states.push(Either::Result(OutOfBounds));
-                    }
-                    return states;
+
+                    values[idx as usize] = val.to_simple_value();
                 } else {
                     panic!("Not array ref");
                 }
             }
             Instruction::ArrayLength => {
-                let StackValue::Ref(arr_ref) = cur_frame
+                let ConcreteStackVal::Ref(arr_ref) = cur_frame
                     .stack
                     .pop()
                     .expect("[ArraySotre]: arrayref not on stack")
@@ -314,54 +259,52 @@ impl<T: IntLike> Interpreter<T> {
                 };
 
                 let Some(arr) = arr_ref else {
-                    return vec![Either::Result(NullPointer)];
+                    return Either::Right(NullPointer);
                 };
 
                 if let HeapValue::Array { values, .. } = &state.heap.heap[arr as usize] {
-                    cur_frame.push(StackValue::Int(T::array_len(values)));
+                    cur_frame.push(ConcreteStackVal::Int(values.len() as i32));
                 } else {
                     panic!("Not array ref");
                 }
             }
-            // Instruction::ArrayLoad { ty } => {
-            //     let StackValue::Int(idx) = cur_frame
-            //         .stack
-            //         .pop()
-            //         .expect("[ArrayLoad]: index not on stack")
-            //     else {
-            //         panic!("Expected an Int");
-            //     };
+            Instruction::ArrayLoad { ty: _ } => {
+                let ConcreteStackVal::Int(idx) = cur_frame
+                    .stack
+                    .pop()
+                    .expect("[ArrayLoad]: index not on stack")
+                else {
+                    panic!("Expected an Int");
+                };
 
-            //     let StackValue::Ref(arr_ref) = cur_frame
-            //         .stack
-            //         .pop()
-            //         .expect("[ArrayLoad]: arrayref not on stack")
-            //     else {
-            //         panic!("Expected a Ref");
-            //     };
+                let ConcreteStackVal::Ref(arr_ref) = cur_frame
+                    .stack
+                    .pop()
+                    .expect("[ArrayLoad]: arrayref not on stack")
+                else {
+                    panic!("Expected a Ref");
+                };
 
-            //     let Some(arr) = arr_ref else {
-            //         return Either::Result(NullPointer);
-            //     };
+                let Some(arr) = arr_ref else {
+                    return Either::Right(NullPointer);
+                };
 
-            //     if let HeapValue::Array { values, .. } = &state.heap.heap[arr as usize] {
-            //         if idx as usize >= values.len() {
-            //             return Either::Result(OutOfBounds);
-            //         }
+                if let HeapValue::Array { values, .. } = &state.heap.heap[arr as usize] {
+                    if idx as usize >= values.len() {
+                        return Either::Right(OutOfBounds);
+                    }
 
-            //         cur_frame.push(values[idx as usize].to_stack_value());
-            //     } else {
-            //         panic!("Not array ref");
-            //     }
-            // }
+                    cur_frame.push(values[idx as usize].to_stack_value());
+                } else {
+                    panic!("Not array ref");
+                }
+            }
             Instruction::Incr { index, amount } => {
-                let StackValue::Int(local) = cur_frame.locals[*index as usize].unwrap() else {
+                let ConcreteStackVal::Int(local) = cur_frame.locals[*index as usize].unwrap()
+                else {
                     panic!("Local must be an int, local: {}", index);
                 };
-                let result = T::bin_op(Op::Add, local, T::from_i32(*amount))
-                    .result
-                    .unwrap();
-                cur_frame.locals[*index as usize] = Some(StackValue::Int(result));
+                cur_frame.locals[*index as usize] = Some(ConcreteStackVal::Int(local + *amount));
             }
             Instruction::Neg { ty } => {
                 let Some(value) = cur_frame.stack.pop() else {
@@ -369,49 +312,16 @@ impl<T: IntLike> Interpreter<T> {
                 };
                 assert!(*ty == value.get_type());
                 let res = match value {
-                    StackValue::Int(v) => StackValue::Int(v.neg()),
-                    StackValue::Float(v) => StackValue::Float(-v),
-                    StackValue::Ref(_) => panic!(),
+                    ConcreteStackVal::Int(v) => ConcreteStackVal::Int(-v),
+                    ConcreteStackVal::Float(v) => ConcreteStackVal::Float(-v),
+                    ConcreteStackVal::Ref(_) => panic!(),
                 };
                 cur_frame.push(res);
             }
             Instruction::NoOp => {}
-            _ => todo!(),
         }
         cur_frame.increment_pc();
         state.frames.push(cur_frame);
-        vec![Either::State(state)]
-    }
-}
-
-impl<T: IntAbstraction> Interpreter<T> {
-    pub fn abstract_interpret(&self, method: &Method<T>, iter: u32) -> Vec<ExeResult> {
-        let input = abstract_input::<T>(&method.id.params);
-        let pc = ProgramCounter {
-            class: self.class.name.clone(),
-            method: method.id.clone(),
-            idx: 0,
-        };
-        let mut states = vec![State::new(pc.clone(), input.0, input.1)];
-        let mut results = vec![];
-        for _ in 0..iter {
-            states = self
-                .multistep(states)
-                .into_iter()
-                .filter_map(|res| match res {
-                    Either::State(state) => Some(state),
-                    Either::Result(exe_result) => {
-                        if !results.contains(&exe_result) {
-                            results.push(exe_result);
-                        }
-                        None
-                    }
-                })
-                .collect();
-        }
-        if !states.is_empty() {
-            results.push(ExeResult::DidNotFinish);
-        }
-        results
+        Either::Left(state)
     }
 }

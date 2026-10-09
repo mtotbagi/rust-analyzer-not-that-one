@@ -1,4 +1,5 @@
 use crate::{
+    ConcreteHeap,
     java_class::Method,
     java_types::{
         ConcreteSimpleVal, ConcreteStackVal, ConcreteVal, HeapType, HeapValue, SimpleType,
@@ -7,8 +8,6 @@ use crate::{
     state::Heap,
 };
 use std::collections::HashMap;
-
-type ConcreteHeap = Heap<i32, f32, Option<u32>>;
 
 pub fn parse_input(method: &Method, input: &str) -> (Vec<ConcreteStackVal>, ConcreteHeap) {
     let types = &method.id.params;
@@ -150,10 +149,7 @@ fn parse_array(ty: SimpleType, input: &str, heap: &mut ConcreteHeap) -> Concrete
         .collect();
 
     let idx = heap.heap.len() as u32;
-    heap.heap.push(HeapValue::Array {
-        ty: Type::S(ty),
-        values,
-    });
+    heap.heap.push(HeapValue::Array { ty: ty, values });
     StackValue::Ref(Some(idx))
 }
 
@@ -174,7 +170,7 @@ fn parse_string(input: &str, heap: &mut ConcreteHeap) -> ConcreteStackVal {
     fields.insert(
         "value".to_string(),
         Value::H(HeapValue::Array {
-            ty: Type::S(SimpleType::Char),
+            ty: SimpleType::Char,
             values: chars,
         }),
     );

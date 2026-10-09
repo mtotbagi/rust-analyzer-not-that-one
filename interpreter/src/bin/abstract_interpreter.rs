@@ -11,7 +11,7 @@ fn main() {
     }
     let (classname, methodname) = get_class_and_method(&args[1]);
     let json: Value = read_json(&classname);
-    let class: Class<SignSet> = Class::from_json(&json);
+    let class: Class = Class::from_json(&json);
 
     let method = class
         .get_method(&methodname)
@@ -24,14 +24,14 @@ fn main() {
         .id
         .params
         .iter()
-        .any(|param| matches!(param, SimpleType::SimpleRef(_)))
+        .any(|param| matches!(param, Type::H(_)))
     {
         return;
     }
 
     let interpreter = Interpreter::new(class);
-    let results = interpreter.abstract_interpret(&method, 100);
-    for res in results {
-        eprintln!("{:?}", res)
-    }
+    // let results = interpreter.abstract_interpret(&method, 100);
+    // for res in results {
+    //     eprintln!("{:?}", res)
+    // }
 }
